@@ -37,12 +37,13 @@ Ausgabe: nur Monat und Prüfergebnis, keine persönlichen Daten.
 
 ## Wenn sich Sätze ändern
 
-Neues Jahr mit anderen SV-Sätzen → in `src/pruefungen.js` bei `SAETZE` einen Eintrag für das Jahr ergänzen. Regiesatz und Tagespauschale werden pro Monat aus dem PDF gelesen (häufigster Stundensatz), nicht eingetragen.
+Neues Jahr mit anderen SV-Sätzen → in `src/pruefungen.js` bei `SAETZE` einen Eintrag für das Jahr ergänzen. Der Regiesatz wird pro Monat aus dem PDF gelesen (häufigster Stundensatz), nicht eingetragen. Die Tagespauschale (ab Juli 2026: 21,00 €/Std je Maler) steht in `src/pruefungen-malerliste.js` bei `TAGESPAUSCHALE`. Bei einem neuen Satz dort eine Zeile ergänzen.
 
 ## Regeln der Malerliste (aus 33 echten Zetteln abgeleitet)
 
 - Zeile: Betrag = Satz × (Menge + 0,5 × Menge 50 % + 0,1 × Menge 10 %)
-- Team-Abrechnung („A + B"): Anteil = (Summe − Tagespauschale) ÷ Anzahl Arbeiter + Tagespauschale. Die Tagespauschale steht jedem Maler voll zu.
+- Team-Abrechnung („A + B"): Anteil = (Summe − Tagespauschale) ÷ Anzahl Arbeiter + Tagespauschale. Die Tagespauschale steht jedem Maler voll zu und wird nie geteilt.
+- Tagespauschale: 21,00 €/Std (ab Juli 2026), unabhängig vom Regiesatz. Ein anderer Satz wird als Fehler gemeldet.
 - Eigene Abrechnung enthält Team-Anteile als Zeile „Anteil aus A+B". Ohne eigene Abrechnung zählen die Team-Anteile.
 - Mehrere Versionen derselben Abrechnung: die neueste zählt; passt der Abgleich nur mit einer anderen Version, wird das gesagt.
 - Abgleich: Summe aller Aufträge = Monatslohn (Pos. 135). Eine Differenz wird, wenn möglich, einem einzelnen Auftrag zugeordnet.

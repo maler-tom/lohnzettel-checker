@@ -3,6 +3,12 @@
 import { auftraegeAusAbrechnungen, betragFuerAuftrag } from "./malerliste.js";
 import { euro } from "./pruefungen.js";
 
+// Tagespauschale je Maler und Stunde. Unabhängig vom Regiesatz (z. B. 18,10 €).
+// Gilt ab Juli 2026 ("laut Besprechung"). Ältere Zettel hatten andere Sätze (Feb 2024: 18,50 €).
+// Ändert sich der Satz, hier einen neuen Eintrag ergänzen.
+const TAGESPAUSCHALE = [{ ab: "2026-07", satz: 21.0 }];
+const tpSollSatz = (monat) => (monat ? TAGESPAUSCHALE.filter((t) => monat >= t.ab).at(-1)?.satz ?? null : null);
+
 const r2 = (x) => Math.round((x + Number.EPSILON) * 100) / 100;
 const gleich = (a, b, tol = 0.011) => a != null && b != null && Math.abs(a - b) <= tol;
 const menge = (x) => x.toLocaleString("de-DE", { maximumFractionDigits: 2 });
@@ -37,6 +43,9 @@ function pruefeAbrechnung(a, alle, basis, ich) {
       add("info", `Zuschlag: ${pos.name}`, `${pos.p50 ? `50 % auf ${menge(pos.p50)} ${pos.einheit}` : ""}${pos.p50 && pos.p10 ? ", " : ""}${pos.p10 ? `10 % auf ${menge(pos.p10)} ${pos.einheit}` : ""} → ${euro(pos.gesamt)}.`);
     if (pos.gesamt < 0)
       add("info", `Abzug: ${pos.name}`, `${euro(pos.gesamt)} werden in diesem Auftrag abgezogen.`);
+    const tpSoll = pos.tagespauschale ? tpSollSatz(a.monat) : null;
+    if (tpSoll && !gleich(pos.satz, tpSoll, 0.005))
+      add("fehler", `${pos.name}: falscher Satz`, `Die Tagespauschale beträgt ${euro(tpSoll)}/Std, abgerechnet sind ${euro(pos.satz)}/Std. Richtig wären ${menge(pos.menge)} Std × ${euro(tpSoll)} = ${euro(r2(pos.menge * tpSoll))} statt ${euro(pos.gesamt)}, also ${euro(Math.abs(r2(pos.menge * tpSoll - pos.gesamt)))} ${pos.menge * tpSoll >= pos.gesamt ? "zu wenig" : "zu viel"}.`);
     if (basis && pos.einheit === "Std" && !pos.tagespauschale && pos.satz > 0 && pos.satz < basis - 0.005)
       add("hinweis", `${pos.name}: niedriger Stundensatz`, `${euro(pos.satz)}/Std, der Regiesatz in diesem Monat ist ${euro(basis)}/Std. Im Monat der jährlichen Erhöhung ist das für Arbeit davor normal. Sonst wurde die Erhöhung vielleicht vergessen.`);
   }
