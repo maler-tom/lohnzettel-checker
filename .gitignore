@@ -1,0 +1,5 @@
+node_modules/
+# Niemals echte Lohnzettel einchecken (nur der erfundene Muster-Zettel ist erlaubt)
+*.pdf
+!beispiel/muster-lohnzettel.pdf
+.env

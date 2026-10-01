@@ -1,0 +1,168 @@
+:root {
+  --bg: #f4f2ee;
+  --karte: #ffffff;
+  --text: #1f2328;
+  --leise: #5d6470;
+  --linie: #e3dfd8;
+  --akzent: #1f5fa8;
+  --akzent-text: #ffffff;
+  --ok: #1b7a43;
+  --ok-bg: #e5f4ea;
+  --hinweis: #9a5a00;
+  --hinweis-bg: #fdf0dc;
+  --fehler: #b42318;
+  --fehler-bg: #fde7e4;
+  --info: #44506a;
+  --info-bg: #eceff5;
+  --radius: 14px;
+  --schatten: 0 1px 2px rgb(0 0 0 / 5%), 0 4px 16px rgb(0 0 0 / 5%);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15171b;
+    --karte: #1f2228;
+    --text: #e8e9ec;
+    --leise: #a2a8b3;
+    --linie: #333842;
+    --akzent: #5b9be6;
+    --akzent-text: #0d1117;
+    --ok: #57c785;
+    --ok-bg: #173324;
+    --hinweis: #f0b35a;
+    --hinweis-bg: #3a2a12;
+    --fehler: #ff8a7d;
+    --fehler-bg: #3d1a17;
+    --info: #b4bdd0;
+    --info-bg: #262b35;
+    --schatten: none;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+main, .kopf, .fuss { max-width: 680px; margin: 0 auto; padding: 0 16px; }
+
+.kopf { padding-top: 28px; padding-bottom: 8px; }
+h1 { font-size: 1.6rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+.untertitel { margin: 0; color: var(--leise); }
+h2 { font-size: 1.05rem; margin: 0 0 12px; }
+
+.karte {
+  background: var(--karte);
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  box-shadow: var(--schatten);
+  padding: 18px;
+  margin: 16px 0;
+}
+
+.datenschutz { display: flex; gap: 12px; align-items: flex-start; background: var(--ok-bg); border-color: transparent; }
+.datenschutz p { margin: 0; font-size: 0.95rem; }
+.schloss { font-size: 1.3rem; line-height: 1.2; }
+
+.knopf {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 48px; padding: 0 20px;
+  border-radius: 12px; border: 1px solid var(--linie);
+  background: var(--karte); color: var(--text);
+  font: inherit; font-weight: 600; cursor: pointer;
+}
+.knopf.haupt { background: var(--akzent); color: var(--akzent-text); border-color: transparent; }
+.knopf.breit { width: 100%; margin-top: 12px; }
+.knopf.leise { min-width: 48px; padding: 0; }
+.knopf:disabled { opacity: 0.6; cursor: wait; }
+.knopf:focus-visible, .link:focus-visible, input:focus-visible { outline: 3px solid var(--akzent); outline-offset: 2px; }
+
+.dateiwahl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.dateiwahl input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.dateiwahl input:focus-visible + .knopf { outline: 3px solid var(--akzent); outline-offset: 2px; }
+.dateiinfo { color: var(--leise); font-size: 0.92rem; }
+
+.pwform { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--linie); }
+.pwzeile { display: flex; gap: 8px; margin-top: 6px; }
+.pwzeile input {
+  flex: 1; min-width: 0; min-height: 48px; padding: 0 14px;
+  border-radius: 12px; border: 1px solid var(--linie);
+  background: var(--bg); color: var(--text); font: inherit; font-size: 1.05rem;
+}
+.klein { font-size: 0.88rem; color: var(--leise); }
+
+.meldung { margin: 14px 0 0; min-height: 1.5em; }
+.meldung:empty { display: none; }
+.meldung.fehler { color: var(--fehler); font-weight: 600; }
+
+.beispiel { margin: 16px 0 0; font-size: 0.92rem; color: var(--leise); }
+.link { background: none; border: 0; padding: 0; color: var(--akzent); font: inherit; text-decoration: underline; cursor: pointer; }
+
+/* Ergebnis */
+.zusammenfassung { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; }
+.zusammenfassung p { margin: 0; font-weight: 600; }
+
+.monatkopf { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.monatname { margin: 0; font-size: 1.2rem; }
+.chip { font-size: 0.85rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+.chip.ok { background: var(--ok-bg); color: var(--ok); }
+.chip.hinweis { background: var(--hinweis-bg); color: var(--hinweis); }
+.chip.fehler { background: var(--fehler-bg); color: var(--fehler); }
+
+.kennzahlen { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0; }
+.kennzahlen div { background: var(--bg); border-radius: 10px; padding: 8px 10px; min-width: 0; }
+.kennzahlen dt { font-size: 0.78rem; color: var(--leise); }
+.kennzahlen dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+.pruefliste { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.pruefliste li { display: grid; grid-template-columns: 26px 1fr; gap: 8px; padding: 8px 10px; border-radius: 10px; align-items: start; }
+.pruefliste .symbol { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 0.8rem; font-weight: 800; margin-top: 1px; }
+.pruefliste .titel { font-weight: 600; }
+.pruefliste .text { display: block; font-size: 0.92rem; color: var(--leise); }
+.pruefliste li.ok .symbol { background: var(--ok); color: var(--karte); }
+.pruefliste li.hinweis { background: var(--hinweis-bg); }
+.pruefliste li.hinweis .symbol { background: var(--hinweis); color: var(--karte); }
+.pruefliste li.hinweis .text, .pruefliste li.fehler .text { color: var(--text); }
+.pruefliste li.fehler { background: var(--fehler-bg); }
+.pruefliste li.fehler .symbol { background: var(--fehler); color: var(--karte); }
+.pruefliste li.info .symbol { background: var(--info-bg); color: var(--info); }
+
+.okzeile { list-style: none; }
+.okzeile details summary { cursor: pointer; padding: 8px 10px; color: var(--ok); font-weight: 600; }
+.okzeile details ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+
+.aufklapp { margin-top: 8px; }
+.aufklapp summary { cursor: pointer; color: var(--akzent); font-weight: 600; padding: 6px 0; }
+.tabellenrahmen { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--linie); }
+th { color: var(--leise); font-weight: 600; font-size: 0.8rem; }
+.zahl { text-align: right; white-space: nowrap; }
+td:first-child { overflow-wrap: anywhere; }
+tfoot td { font-weight: 700; border-bottom: 0; }
+
+.fuss { padding-bottom: 40px; color: var(--leise); font-size: 0.88rem; }
+.fuss a { color: inherit; }
+
+@media (max-width: 420px) {
+  .karte { padding: 14px; }
+  .kennzahlen { gap: 6px; }
+  .kennzahlen div { padding: 6px 8px; }
+  .kennzahlen dd { font-size: 0.92rem; }
+  table { font-size: 0.82rem; }
+  th, td { padding: 6px 2px; }
+}
+
+/* Abschnitte innerhalb einer Monatskarte */
+.pruefliste.wichtig { margin-bottom: 4px; }
+.abschnitt { margin: 18px 0 8px; padding-top: 12px; border-top: 1px solid var(--linie); font-size: 0.95rem; }
+.saetze { margin: 0 0 8px; }
+.mini { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font-size: 0.7rem; font-weight: 800; color: var(--karte); }
+.mini.ok { background: var(--ok); }
+.mini.hinweis { background: var(--hinweis); }
+.mini.fehler { background: var(--fehler); }
+td:first-child:has(.mini) { width: 22px; }

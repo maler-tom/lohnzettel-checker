@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Die Seite darf nur Dateien vom eigenen Server laden und nichts an fremde Server schicken. -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self'; form-action 'none'; base-uri 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>Lohnzettel-Checker</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="kopf">
+    <h1>Lohnzettel-Checker</h1>
+    <p class="untertitel">Rechnet deinen Lohnzettel nach: Aufträge, Tagespauschale, Summen, Sozialversicherung und Auszahlung.</p>
+  </header>
+
+  <main>
+    <section class="karte datenschutz" aria-label="Datenschutz">
+      <span class="schloss" aria-hidden="true">🔒</span>
+      <p><strong>Deine Daten bleiben auf deinem Gerät.</strong> Der Lohnzettel und dein Passwort werden nirgends hochgeladen und nicht gespeichert. Die Rechnung läuft nur hier im Browser.</p>
+    </section>
+
+    <section class="karte" id="eingabe">
+      <h2>1. Lohnzettel auswählen</h2>
+      <label class="dateiwahl">
+        <input type="file" id="dateien" accept="application/pdf,.pdf" multiple>
+        <span class="knopf haupt">PDF auswählen</span>
+        <span class="dateiinfo" id="dateiinfo">Du kannst auch mehrere Monate auf einmal wählen.</span>
+      </label>
+
+      <form id="pwForm" class="pwform" hidden autocomplete="off">
+        <h2>2. Passwort eingeben</h2>
+        <label for="passwort" class="klein">Das Passwort deines Lohnzettels. Es wird nicht gespeichert.</label>
+        <div class="pwzeile">
+          <input type="password" id="passwort" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text">
+          <button type="button" class="knopf leise" id="pwZeigen" aria-label="Passwort anzeigen">👁</button>
+        </div>
+        <button type="submit" class="knopf haupt breit" id="pruefen">Prüfen</button>
+      </form>
+
+      <p class="meldung" id="meldung" role="status" aria-live="polite"></p>
+
+      <p class="beispiel">Noch keinen Zettel zur Hand? <button type="button" class="link" id="beispiel">Mit einem Muster-Zettel ausprobieren</button></p>
+    </section>
+
+    <section id="ergebnis" aria-live="polite"></section>
+  </main>
+
+  <footer class="fuss">
+    <p><strong>Ohne Gewähr.</strong> Die App rechnet nach, was auf dem Zettel steht. Bei einer Abweichung frag im Lohnbüro nach, bevor du von einem Fehler ausgehst.</p>
+    <p>Die genaue Lohnsteuer wird nicht nachgerechnet, weil sie vom Steuertarif abhängt.</p>
+    <p class="klein">Version 0.2 · PDF-Lesen mit <a href="vendor/pdfjs/LICENSE">pdf.js</a> (Apache 2.0)</p>
+  </footer>
+
+  <template id="tplMonat">
+    <article class="karte monat">
+      <header class="monatkopf">
+        <h3 class="monatname"></h3>
+        <span class="chip"></span>
+      </header>
+      <dl class="kennzahlen">
+        <div><dt>Brutto</dt><dd class="brutto"></dd></div>
+        <div><dt>Abzüge</dt><dd class="abzuege"></dd></div>
+        <div><dt>Auszahlung</dt><dd class="netto"></dd></div>
+      </dl>
+      <ul class="pruefliste wichtig"></ul>
+
+      <h4 class="abschnitt">Gehaltsseite</h4>
+      <ul class="pruefliste gehalt"></ul>
+      <details class="aufklapp">
+        <summary>Bezüge anzeigen</summary>
+        <div class="tabellenrahmen">
+          <table>
+            <thead><tr><th>Art</th><th class="zahl">Menge</th><th class="zahl">Satz</th><th class="zahl">Betrag</th></tr></thead>
+            <tbody class="bezugszeilen"></tbody>
+          </table>
+        </div>
+      </details>
+
+      <h4 class="abschnitt">Aufträge (Malerliste)</h4>
+      <p class="saetze klein"></p>
+      <ul class="pruefliste maler"></ul>
+      <details class="aufklapp">
+        <summary>Aufträge anzeigen</summary>
+        <div class="tabellenrahmen">
+          <table>
+            <thead><tr><th></th><th>Auftrag</th><th>Art</th><th class="zahl">Dein Betrag</th></tr></thead>
+            <tbody class="auftragszeilen"></tbody>
+            <tfoot><tr><td></td><td colspan="2">Summe</td><td class="zahl auftragssumme"></td></tr></tfoot>
+          </table>
+        </div>
+      </details>
+    </article>
+  </template>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
