@@ -8,7 +8,7 @@
         content="default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self'; form-action 'none'; base-uri 'none'">
   <meta name="referrer" content="no-referrer">
   <title>Lohnzettel-Checker</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=0.6">
 </head>
 <body>
   <header class="kopf">
@@ -19,7 +19,7 @@
   <main>
     <section class="karte datenschutz" aria-label="Datenschutz">
       <span class="schloss" aria-hidden="true">🔒</span>
-      <p><strong>Deine Daten bleiben auf deinem Gerät.</strong> Der Lohnzettel und dein Passwort werden nirgends hochgeladen und nicht gespeichert. Die Rechnung läuft nur hier im Browser.</p>
+      <p><strong>Deine Daten bleiben auf deinem Gerät.</strong> Der Lohnzettel und dein Passwort werden nirgends hochgeladen und nicht gespeichert. Die Rechnung läuft nur hier im Browser. Nur deine Akkordpreise (Arbeit und €-Satz, ohne Namen und Beträge) und, falls du sie lädst, deine Preisliste merkt sich dieser Browser.</p>
     </section>
 
     <section class="karte" id="eingabe">
@@ -45,13 +45,24 @@
       <p class="beispiel">Noch keinen Zettel zur Hand? <button type="button" class="link" id="beispiel">Mit einem Muster-Zettel ausprobieren</button></p>
     </section>
 
+    <section class="karte" id="preislisteKarte">
+      <h2>Preisliste (freiwillig)</h2>
+      <p class="klein" id="preislisteInfo">Keine Preisliste geladen. Es wird nur nachgerechnet, nicht mit Listenpreisen verglichen.</p>
+      <label class="dateiwahl">
+        <input type="file" id="preislisteDatei" accept="application/pdf,.pdf">
+        <span class="knopf">Preisliste wählen (PDF)</span>
+      </label>
+      <button type="button" class="linkknopf klein" id="preislisteWeg" hidden>Preisliste entfernen</button>
+      <p class="klein">Einmal hochladen reicht. Die Liste bleibt nur in diesem Browser gespeichert.</p>
+    </section>
+
     <section id="ergebnis" aria-live="polite"></section>
   </main>
 
   <footer class="fuss">
     <p><strong>Ohne Gewähr.</strong> Die App rechnet nach, was auf dem Zettel steht. Bei einer Abweichung frag im Lohnbüro nach, bevor du von einem Fehler ausgehst.</p>
     <p>Die genaue Lohnsteuer wird nicht nachgerechnet, weil sie vom Steuertarif abhängt.</p>
-    <p class="klein">Version 0.3 (01.10.2026) · PDF-Lesen mit <a href="vendor/pdfjs/LICENSE">pdf.js</a> (Apache 2.0)</p>
+    <p class="klein">Version 0.7 (02.10.2026) · PDF-Lesen mit <a href="vendor/pdfjs/LICENSE">pdf.js</a> (Apache 2.0)</p>
   </footer>
 
   <template id="tplMonat">
@@ -95,6 +106,6 @@
     </article>
   </template>
 
-  <script type="module" src="app.js?v=0.3"></script>
+  <script type="module" src="app.js?v=0.7"></script>
 </body>
 </html>

@@ -1,7 +1,8 @@
 import * as pdfjs from "./vendor/pdfjs/pdf.min.mjs";
 import { zeilenAusItems } from "./src/parser.js";
 import { euro } from "./src/pruefungen.js";
-import { werteAus } from "./src/auswertung.js";
+import { werteAus, pruefePreisverlauf, pruefePreisliste } from "./src/auswertung.js";
+import { istPreisliste, lesePreisliste } from "./src/preisliste.js";
 
 pdfjs.GlobalWorkerOptions.workerSrc = "./vendor/pdfjs/pdf.worker.min.mjs";
 
@@ -17,6 +18,64 @@ const CHIP = { ok: "Alles passt", hinweis: "Hinweis", fehler: "Abweichung" };
 const wichtig = (x) => x.status === "fehler" || x.status === "hinweis";
 
 let dateien = [];
+
+// Preisverlauf (nur Arbeit + €-Satz je Monat) bleibt nur in diesem Browser
+const SPEICHER = "lohnzettel-checker.preisverlauf";
+function ladeVerlauf() {
+  try { return JSON.parse(localStorage.getItem(SPEICHER)) ?? {}; } catch { return {}; }
+}
+const LISTE = "lohnzettel-checker.preisliste";
+function ladeListe() {
+  try { return JSON.parse(localStorage.getItem(LISTE)); } catch { return null; }
+}
+// "MAL Maler- und Anstreicharbeiten" -> "Maler- und Anstreicharbeiten" (Kürzel vorne weglassen)
+const gruppenName = (g) => (g ? g.replace(/^[A-ZÄÖÜ]{2,6}\s+(?=\S)/, "") : "Lohnpreisliste");
+function zeigeListe() {
+  const l = ladeListe();
+  const info = $("preislisteInfo");
+  info.replaceChildren();
+  info.classList.toggle("geladen", !!l);
+  if (l) {
+    const haken = el("span", "haken", "✓");
+    haken.setAttribute("aria-hidden", "true");
+    const text = el("span");
+    text.append(el("strong", null, "Preisliste geladen"), el("br"), `${gruppenName(l.gruppe)} · Stand ${l.stand ?? "?"} · ${l.anzahl} Artikel`);
+    info.append(haken, text);
+  } else info.textContent = "Keine Preisliste geladen. Es wird nur nachgerechnet, nicht mit Listenpreisen verglichen.";
+  $("preislisteKarte").classList.toggle("geladen", !!l);
+  $("preislisteWeg").hidden = !l;
+}
+zeigeListe();
+
+$("preislisteDatei").addEventListener("change", async (e) => {
+  const f = e.target.files[0];
+  e.target.value = "";
+  if (!f) return;
+  try {
+    const doc = await oeffne(new Uint8Array(await f.arrayBuffer()), "");
+    if (doc.passwortFalsch) { $("preislisteInfo").textContent = "Diese Preisliste ist passwortgeschützt. Das wird noch nicht unterstützt."; return; }
+    const seiten = [];
+    for (let n = 1; n <= doc.numPages; n++) seiten.push(zeilenAusItems((await (await doc.getPage(n)).getTextContent()).items));
+    await doc.destroy();
+    const l = lesePreisliste(seiten);
+    if (!istPreisliste(seiten) || !l.anzahl) { $("preislisteInfo").textContent = `In „${f.name}“ habe ich keine Preisliste gefunden (ArtNr, Einheit, Preis).`; return; }
+    try { localStorage.setItem(LISTE, JSON.stringify(l)); } catch { /* privater Modus */ }
+    zeigeListe();
+    if (!ladeListe()) $("preislisteInfo").textContent = `Preisliste gelesen (${l.anzahl} Artikel), aber dieser Browser kann sie nicht speichern (privater Modus?).`;
+  } catch (err) {
+    console.error(err);
+    $("preislisteInfo").textContent = "Die Preisliste konnte nicht gelesen werden.";
+  }
+});
+
+$("preislisteWeg").addEventListener("click", () => {
+  try { localStorage.removeItem(LISTE); } catch { /* egal */ }
+  zeigeListe();
+});
+
+function speichereVerlauf(v) {
+  try { localStorage.setItem(SPEICHER, JSON.stringify(v)); } catch { /* privater Modus: dann eben ohne */ }
+}
 
 function zeigeMeldung(text, fehler = false) {
   meldung.textContent = text;
@@ -51,7 +110,7 @@ pwForm.addEventListener("submit", async (e) => {
 
 $("beispiel").addEventListener("click", async () => {
   zeigeMeldung("Muster-Zettel wird geladen … (Passwort: muster)");
-  await pruefeDateien([{ name: "muster-lohnzettel.pdf", laden: () => fetch("beispiel/muster-lohnzettel.pdf").then((r) => r.arrayBuffer()) }], "muster");
+  await pruefeDateien([{ name: "muster-lohnzettel.pdf", laden: () => fetch("beispiel/muster-lohnzettel.pdf").then((r) => r.arrayBuffer()) }], "muster", false);
 });
 
 async function oeffne(daten, passwort) {
@@ -63,7 +122,7 @@ async function oeffne(daten, passwort) {
   }
 }
 
-async function pruefeDateien(liste, passwort) {
+async function pruefeDateien(liste, passwort, merken = true) {
   pruefenKnopf.disabled = true;
   ergebnis.replaceChildren();
   const monate = [], ohneGehaltsseite = [], gesehen = new Set();
@@ -91,7 +150,13 @@ async function pruefeDateien(liste, passwort) {
     }
     pwInput.value = ""; // Passwort sofort vergessen
     zeigeMeldung("");
-    zeigeErgebnis(monate.sort((a, b) => (a.monat ?? "").localeCompare(b.monat ?? "")), ohneGehaltsseite);
+    monate.sort((a, b) => (a.monat ?? "").localeCompare(b.monat ?? ""));
+    // Muster-Zettel nicht mit den eigenen Preisen vermischen
+    const verlauf = pruefePreisverlauf(monate, merken ? ladeVerlauf() : {});
+    if (merken) speichereVerlauf(verlauf);
+    const preisliste = merken ? ladeListe() : null;
+    const vergleich = preisliste ? { ...pruefePreisliste(monate, preisliste), stand: preisliste.stand } : null;
+    zeigeErgebnis(monate, ohneGehaltsseite, merken ? Object.keys(verlauf).length : 0, vergleich);
   } catch (err) {
     console.error(err);
     zeigeMeldung("Die Datei konnte nicht gelesen werden. Ist es wirklich ein Lohnzettel als PDF?", true);
@@ -100,7 +165,7 @@ async function pruefeDateien(liste, passwort) {
   }
 }
 
-function zeigeErgebnis(monate, ohneGehaltsseite) {
+function zeigeErgebnis(monate, ohneGehaltsseite, verlaufMonate, vergleich) {
   const zaehl = { ok: 0, hinweis: 0, fehler: 0 };
   monate.forEach((m) => zaehl[m.status]++);
 
@@ -113,6 +178,19 @@ function zeigeErgebnis(monate, ohneGehaltsseite) {
   neu.addEventListener("click", neuStart);
   kopf.append(el("p", null, bits.join(" · ")), neu);
   if (ohneGehaltsseite.length) kopf.append(el("p", "klein", `Ohne Gehaltsseite (übersprungen): ${ohneGehaltsseite.join(", ")}`));
+  if (vergleich)
+    kopf.append(el("p", "klein", `Preisliste (Stand ${vergleich.stand ?? "?"}): ${vergleich.verglichen} Positionen verglichen${vergleich.ohne ? `, ${vergleich.ohne} ohne passende Listenposition (Sonderpreise, Nachverrechnungen)` : ""}.`));
+  if (verlaufMonate) {
+    const vz = el("p", "klein", `Akkordpreise verglichen mit ${verlaufMonate} ${verlaufMonate === 1 ? "Monat" : "Monaten"}, nur in diesem Browser gespeichert. `);
+    const weg = el("button", "linkknopf", "Preisverlauf löschen");
+    weg.type = "button";
+    weg.addEventListener("click", () => {
+      try { localStorage.removeItem(SPEICHER); } catch { /* egal */ }
+      vz.textContent = "Preisverlauf gelöscht.";
+    });
+    vz.append(weg);
+    kopf.append(vz);
+  }
 
   ergebnis.replaceChildren(kopf, ...monate.map(monatsKarte));
   kopf.scrollIntoView({ behavior: "smooth", block: "start" });

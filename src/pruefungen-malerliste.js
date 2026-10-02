@@ -2,12 +2,19 @@
 // Regeln abgeleitet aus 33 echten Lohnzetteln (Jän 2024 – Sep 2026).
 import { auftraegeAusAbrechnungen, betragFuerAuftrag } from "./malerliste.js";
 import { euro } from "./pruefungen.js";
+import { gleicheArbeitAndererPreis } from "./preise.js";
 
 // Tagespauschale je Maler und Stunde. Unabhängig vom Regiesatz (z. B. 18,10 €).
 // Gilt ab Juli 2026 ("laut Besprechung"). Ältere Zettel hatten andere Sätze (Feb 2024: 18,50 €).
 // Ändert sich der Satz, hier einen neuen Eintrag ergänzen.
 const TAGESPAUSCHALE = [{ ab: "2026-07", satz: 21.0 }];
 const tpSollSatz = (monat) => (monat ? TAGESPAUSCHALE.filter((t) => monat >= t.ab).at(-1)?.satz ?? null : null);
+
+// Typischer Regie-Text: "21.06. > ...", "inkl. FZ", "Fahrzeit", "Abdecken", "Ausbesserung"
+const REGIE_TEXT = /^\d{1,2}\.(\d{1,2}\.)?.*>|inkl\.?\s*FZ|Fahrzeit|Regie|^Abdeck|Ausbesserung/i;
+
+export const auftragStatus = (auf) =>
+  auf.pruefungen.some((x) => x.status === "fehler") ? "fehler" : auf.pruefungen.some((x) => x.status === "hinweis") ? "hinweis" : "ok";
 
 const r2 = (x) => Math.round((x + Number.EPSILON) * 100) / 100;
 const gleich = (a, b, tol = 0.011) => a != null && b != null && Math.abs(a - b) <= tol;
@@ -46,6 +53,8 @@ function pruefeAbrechnung(a, alle, basis, ich) {
     const tpSoll = pos.tagespauschale ? tpSollSatz(a.monat) : null;
     if (tpSoll && !gleich(pos.satz, tpSoll, 0.005))
       add("fehler", `${pos.name}: falscher Satz`, `Die Tagespauschale beträgt ${euro(tpSoll)}/Std, abgerechnet sind ${euro(pos.satz)}/Std. Richtig wären ${menge(pos.menge)} Std × ${euro(tpSoll)} = ${euro(r2(pos.menge * tpSoll))} statt ${euro(pos.gesamt)}, also ${euro(Math.abs(r2(pos.menge * tpSoll - pos.gesamt)))} ${pos.menge * tpSoll >= pos.gesamt ? "zu wenig" : "zu viel"}.`);
+    if (pos.einheit && pos.einheit !== "Std" && !pos.tagespauschale && REGIE_TEXT.test(pos.name))
+      add("hinweis", `${pos.name}: sieht nach Regie aus`, `Der Text klingt nach Stundenarbeit, abgerechnet ist aber ${menge(pos.menge)} ${pos.einheit} × ${euro(pos.satz)} = ${euro(pos.gesamt)}.${basis ? ` Als Regie wären ${menge(pos.menge)} Std × ${euro(basis)} = ${euro(r2(pos.menge * basis))}.` : ""} Bitte prüfen.`);
     if (basis && pos.einheit === "Std" && !pos.tagespauschale && pos.satz > 0 && pos.satz < basis - 0.005)
       add("hinweis", `${pos.name}: niedriger Stundensatz`, `${euro(pos.satz)}/Std, der Regiesatz in diesem Monat ist ${euro(basis)}/Std. Im Monat der jährlichen Erhöhung ist das für Arbeit davor normal. Sonst wurde die Erhöhung vielleicht vergessen.`);
   }
@@ -95,10 +104,11 @@ export function pruefeMalerliste(abrechnungen, gehalt) {
       if (!erfasst)
         auf.pruefungen.push({ status: "hinweis", titel: "Team-Anteil fehlt auf deiner Abrechnung", text: `Der Team-Anteil mit ${mitWem(t, ich)} (${euro(t.anteil)}) steht nicht auf deiner eigenen Abrechnung für diesen Auftrag.` });
     }
-    auf.status = auf.pruefungen.some((x) => x.status === "fehler") ? "fehler" : auf.pruefungen.some((x) => x.status === "hinweis") ? "hinweis" : "ok";
     auf.art = auf.eigene.length ? (auf.teams.length ? "eigen + Team" : "eigen") : `Team mit ${auf.teams.map((t) => mitWem(t, ich)).join(" / ")}`;
     auf.gewerk = auf.abrechnungen[0].gewerk;
   }
+  gleicheArbeitAndererPreis(auftraege);
+  for (const auf of auftraege) auf.status = auftragStatus(auf);
 
   // Abgleich: Summe aller Aufträge = Monatslohn (Pos. 135)?
   const abgleich = [];

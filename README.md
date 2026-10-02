@@ -2,7 +2,7 @@
 
 Rechnet einen Lohnzettel (PDF, passwortgeschützt) im Browser nach: Bezugszeilen, Summe der Bezüge, SV-Basis, Sozialversicherung, Lohnsteuer-Basis, Sonderzahlungen, Abzüge und Auszahlung.
 
-**Datenschutz:** Alles läuft lokal im Browser. Die PDF und das Passwort verlassen das Gerät nicht. Die Content-Security-Policy in `index.html` verbietet Verbindungen zu fremden Servern.
+**Datenschutz:** Alles läuft lokal im Browser. Die PDF und das Passwort verlassen das Gerät nicht. Die Content-Security-Policy in `index.html` verbietet Verbindungen zu fremden Servern. Im Browser (`localStorage`) gespeichert werden nur der Preisverlauf (Arbeit + €-Satz je Monat, ohne Namen und Beträge) und, falls hochgeladen, die eigene Preisliste. Beides kann man in der App wieder löschen.
 
 ## Aufbau
 
@@ -12,7 +12,9 @@ Rechnet einen Lohnzettel (PDF, passwortgeschützt) im Browser nach: Bezugszeilen
 | `src/parser.js` | liest die Gehaltsseite aus den pdf.js-Text-Items (Spalten über die rechte Kante) |
 | `src/pruefungen.js` | Rechenregeln der Gehaltsseite und SV-Sätze je Jahr (`SAETZE`) |
 | `src/malerliste.js` | liest die Seiten „Lohnabrechnung Arbeiter" (eigene/Team-Abrechnungen, Versionen, Zuschläge) |
-| `src/pruefungen-malerliste.js` | Prüfungen der Aufträge (Zeilen, Summen, Team-Anteil, Tagespauschale, Regiesatz) und Abgleich mit dem Monatslohn |
+| `src/pruefungen-malerliste.js` | Prüfungen der Aufträge (Zeilen, Summen, Team-Anteil, Tagespauschale, Regiesatz, Regie-Text mit m²-Preis) und Abgleich mit dem Monatslohn |
+| `src/preise.js` | Preis-Plausibilität ohne Preisliste: gleiche Arbeit zu verschiedenen Preisen, Preis weicht vom üblichen Preis früherer Monate ab |
+| `src/preisliste.js` | liest eine hochgeladene „Lohnpreisliste SUB“ (ArtNr, Einheit, Preis) und vergleicht jede Akkordposition damit. Enthält nur die Zuordnung Bezeichnung → ArtNr, **keine Preise** |
 | `src/auswertung.js` | fügt alles für eine PDF zusammen (von App und Test gleich benutzt) |
 | `vendor/pdfjs/` | pdf.js 4.10.38 (Apache 2.0), lokal eingebunden |
 | `beispiel/muster-lohnzettel.pdf` | erfundener Zettel, Passwort `muster`, mit zwei absichtlichen Fehlern (Reisekosten-Zeile, geteilte Tagespauschale) |
@@ -33,6 +35,8 @@ npm install
 LOHN_PW=<passwort> node tools/test-lokal.mjs "<Ordner mit Lohnzetteln>"
 ```
 
+Mit Preisliste: zusätzlich `PREISLISTE="<Pfad zur Preisliste.pdf>"` setzen. `FEHLER_TEST=1` senkt testweise einen Preis, um zu sehen, ob die Abweichung erkannt wird.
+
 Ausgabe: nur Monat und Prüfergebnis, keine persönlichen Daten.
 
 ## Wenn sich Sätze ändern
@@ -47,3 +51,19 @@ Neues Jahr mit anderen SV-Sätzen → in `src/pruefungen.js` bei `SAETZE` einen 
 - Eigene Abrechnung enthält Team-Anteile als Zeile „Anteil aus A+B". Ohne eigene Abrechnung zählen die Team-Anteile.
 - Mehrere Versionen derselben Abrechnung: die neueste zählt; passt der Abgleich nur mit einer anderen Version, wird das gesagt.
 - Abgleich: Summe aller Aufträge = Monatslohn (Pos. 135). Eine Differenz wird, wenn möglich, einem einzelnen Auftrag zugeordnet.
+
+## Preisprüfung
+
+Es stehen bewusst **keine Firmenpreise im Code** (die Seite ist öffentlich, die Preise ändern sich und gehören der Firma).
+
+**Ohne Preisliste** (immer aktiv):
+- Zeile klingt nach Regie (Datum mit „>“, „inkl. FZ“, „Abdecken“, „Ausbesserung“), ist aber nach m²/Stk abgerechnet → Hinweis mit Vergleich zum Regiesatz
+- Gleiche Arbeit im selben Monat zu verschiedenen Preisen → Hinweis
+- Preis niedriger als der übliche Preis früherer Monate (mindestens 3 Belege) → Hinweis, höher → Info. Der Verlauf wird nur im Browser gespeichert, der Muster-Zettel nie.
+
+**Mit Preisliste** (freiwillig, einmal hochladen):
+- Jeder liest seine eigene „Lohnpreisliste SUB“ als PDF ein, sie bleibt im Browser gespeichert (grünes Häkchen in der App).
+- Die Bezeichnungen auf den Abrechnungen sind freier Text. `ZUORDNUNG` in `src/preisliste.js` ordnet sie per Stichwort einer ArtNr zu (erste passende Regel gilt). Staffelpreise (z. B. Tapeten 1–5 / 6–24 / ab 25 Rollen) gelten alle als richtig.
+- Unter Listenpreis → Abweichung, über Listenpreis → Info, zwischen zwei Staffeln → Hinweis.
+- Stunden (Regie, Tagespauschale) werden nicht mit der Liste verglichen, dafür gelten die eigenen Regeln oben. Sonderfälle (Nachverrechnung, „von 3x“, „Entfernen“ ohne eigene Listenposition) werden übersprungen.
+- Neue Bezeichnungen oder eine andere Liste (z. B. Bodenleger): Regel in `ZUORDNUNG` ergänzen und mit `tools/test-lokal.mjs` + `PREISLISTE` prüfen.
