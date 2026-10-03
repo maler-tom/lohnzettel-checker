@@ -83,17 +83,50 @@ const ZUORDNUNG = [
   [/dämmkeil/, ["106713"]],
   [/brandschutz/, ["101058"]],
   [/rauhfaserfarbe/, ["100489", "100490"]],
-  [/entfernen|abscheren/, []], // Entfernen ohne eigene Listenposition: nicht vergleichen
+  [/(rauhfaser|alt)anstrich entfernen/, []], // Maler: Entfernen ohne eigene Listenposition, nicht vergleichen
   // Streichen allgemein: 1x/2x und weiß/getönt aus dem Text
   [/streichen|anstrich|latex|nikotinfarbe/, (n) => (/getönt|tönung/.test(n) ? (/1\s*x/.test(n) ? ["100321"] : ["100323"]) : /1\s*x/.test(n) ? ["100322"] : ["100324"])],
 ];
+
+// Für den Namensvergleich: "Spachteln - 1 x" = "spachteln 1x", "-----> ab 100 m²" usw.
+const vergleichsName = (t) => t.toLowerCase()
+  .replace(/[–—]/g, "-").replace(/-+>|>/g, " ").replace(/(\d)\s*[x×](?![a-zäöüß])/g, "$1x")
+  .replace(/[()\-/.,:;+"„“]/g, " ").replace(/\s+/g, " ").trim();
+// Staffel-Zusatz am Ende ("ab 100 m²", "bis 9,99 m²", "ab 50 Stk.")
+const ohneStaffel = (t) => t.replace(/\s*-*\s*>*\s*(ab|bis)\s+[\d.,]+\s*(m²|m2|lfm|stk\.?|rollen)?\.?\s*$/i, "");
+
+// Rückfall, wenn keine Regel passt: Bezeichnung = Artikelname in der Liste (samt seinen Staffeln).
+// Zusätze in Klammern auf der Abrechnung ("(Bad)", "(D+W)") werden dafür weggelassen.
+export function artikelPerName(pos, liste, ohneKlammer = true) {
+  const n = vergleichsName(ohneKlammer ? pos.name.replace(/\s*\([^)]*\)\s*$/, "") : pos.name);
+  if (!n) return [];
+  const genau = Object.entries(liste.artikel).filter(([, a]) => vergleichsName(a.name) === n);
+  if (!genau.length) return [];
+  // Ist die Position selbst eine Staffel ("... ab 100 m²"), gilt nur diese. Sonst Grundpreis + alle Staffeln.
+  if (vergleichsName(ohneStaffel(pos.name)) !== n) return genau.map(([nr]) => nr);
+  const basis = vergleichsName(ohneStaffel(genau[0][1].name));
+  return Object.entries(liste.artikel).filter(([, a]) => vergleichsName(ohneStaffel(a.name)) === basis).map(([nr]) => nr);
+}
+
+// Welche Staffel gilt für diese Menge? "ab 100" ab 100, "bis 9,99" bis 9,99, sonst der Grundpreis.
+function staffelPreis(kandidaten, menge) {
+  const grenze = (a) => {
+    const m = a.name.match(/\b(ab|bis)\s+([\d.]*\d(?:,\d+)?)/i);
+    return m ? { art: m[1].toLowerCase(), wert: zahlWert(m[2]) } : null;
+  };
+  const staffeln = kandidaten.map((a) => ({ a, g: grenze(a) }));
+  const treffer = staffeln.filter(({ g }) => g && (g.art === "ab" ? menge >= g.wert : menge <= g.wert));
+  if (treffer.length) return treffer[0].a.preis;
+  return staffeln.find(({ g }) => !g)?.a.preis ?? null;
+}
+const zahlWert = (t) => Number(t.replace(/\./g, "").replace(",", "."));
 
 export function artikelFuer(pos) {
   const n = pos.name.toLowerCase();
   // "Spachteln" pro Raum ist immer die Löcher-Pauschale
   if (pos.einheit === "Raum" && /spachtel/.test(n)) return ["100653"];
   for (const [re, nr] of ZUORDNUNG) if (re.test(n)) return typeof nr === "function" ? nr(n) : nr;
-  return [];
+  return null; // keine Regel: dann darf der Namensvergleich ran
 }
 
 // Hängt die Preislisten-Prüfungen an die Aufträge. Gibt eine kurze Zusammenfassung zurück.
@@ -104,7 +137,14 @@ export function pruefeGegenPreisliste(m, liste) {
     for (const a of auf.abrechnungen) {
       for (const pos of a.positionen) {
         if (pos.anteilAus || !pos.einheit || pos.einheit === "Std" || !(pos.satz > 0) || pos.menge == null) continue;
-        const kandidaten = artikelFuer(pos).map((nr) => liste.artikel[nr]).filter((x) => x && x.einheit === einheit(pos.einheit));
+        const passend = (nrs) => nrs.map((nr) => liste.artikel[nr]).filter((x) => x && x.einheit === einheit(pos.einheit));
+        // Eine Regel, die bewusst nichts liefert (Sonderfall), wird respektiert. Der Namensvergleich
+        // springt nur ein, wenn keine Regel passt oder ihre Artikel nicht in dieser Liste stehen.
+        // 1. Name steht genau so in der Liste  2. Regel  3. Name ohne Klammerzusatz
+        let kandidaten = passend(artikelPerName(pos, liste, false));
+        const ausRegel = kandidaten.length ? [] : artikelFuer(pos);
+        if (!kandidaten.length) kandidaten = passend(ausRegel ?? []);
+        if (!kandidaten.length && (ausRegel === null || ausRegel.length)) kandidaten = passend(artikelPerName(pos, liste));
         if (!kandidaten.length) { ohne++; continue; }
         verglichen++;
         const preise = [...new Set(kandidaten.map((x) => x.preis))].sort((x, y) => x - y);
@@ -112,8 +152,8 @@ export function pruefeGegenPreisliste(m, liste) {
         const k = `${pos.name}|${pos.satz}`;
         if (gemeldet.has(k)) continue;
         gemeldet.add(k);
-        const lp = preise.length === 1 ? preise[0] : preise.find((p) => p > pos.satz) ?? preise.at(-1);
-        const listenText = preise.length === 1 ? `„${kandidaten[0].name}“ ${euro(lp)}/${pos.einheit}` : `„${kandidaten[0].name}“ ${preise.map((p) => euro(p)).join(" / ")} je ${pos.einheit} (Staffel)`;
+        const lp = preise.length === 1 ? preise[0] : staffelPreis(kandidaten, pos.menge) ?? preise.find((p) => p > pos.satz) ?? preise.at(-1);
+        const listenText = preise.length === 1 ? `„${kandidaten[0].name}“ ${euro(lp)}/${pos.einheit}` : `„${kandidaten[0].name}“ ${preise.map((p) => euro(p)).join(" / ")} je ${pos.einheit} (Staffel, bei ${menge(pos.menge)} ${pos.einheit} gilt ${euro(lp)})`;
         const diff = r2(Math.abs(lp - pos.satz) * pos.menge);
         if (pos.satz < preise[0])
           auf.pruefungen.push({ status: "fehler", titel: `${pos.name}: unter Listenpreis`, text: `Abgerechnet ${menge(pos.menge)} ${pos.einheit} × ${euro(pos.satz)}, laut Preisliste ${listenText}. Das sind ${euro(diff)} zu wenig.` });

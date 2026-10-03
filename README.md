@@ -63,7 +63,9 @@ Es stehen bewusst **keine Firmenpreise im Code** (die Seite ist öffentlich, die
 
 **Mit Preisliste** (freiwillig, einmal hochladen):
 - Jeder liest seine eigene „Lohnpreisliste SUB“ als PDF ein, sie bleibt im Browser gespeichert (grünes Häkchen in der App).
-- Die Bezeichnungen auf den Abrechnungen sind freier Text. `ZUORDNUNG` in `src/preisliste.js` ordnet sie per Stichwort einer ArtNr zu (erste passende Regel gilt). Staffelpreise (z. B. Tapeten 1–5 / 6–24 / ab 25 Rollen) gelten alle als richtig.
+- Die Bezeichnungen auf den Abrechnungen sind freier Text. Zuordnung zur ArtNr in dieser Reihenfolge: (1) Bezeichnung steht genau so in der Liste, (2) Stichwort-Regel in `ZUORDNUNG` (`src/preisliste.js`, bisher für Maler), (3) Bezeichnung ohne Klammerzusatz („(Bad)“, „(WZ)“) steht in der Liste. Eine Regel ohne ArtNr bedeutet „Sonderfall, nicht vergleichen“.
+- Staffelpreise („ab 100 m²“, „bis 9,99 m²“, Tapeten 1–5 / 6–24 / ab 25 Rollen) gelten alle als richtig, weil sich die Staffel auf den ganzen Auftrag beziehen kann. Bei einer Abweichung rechnet die App die Differenz zur Staffel, die zur Menge passt.
+- Funktioniert für Maler und Bodenleger (geprüft mit der Bodenleger-Liste, 208 Artikel).
 - Unter Listenpreis → Abweichung, über Listenpreis → Info, zwischen zwei Staffeln → Hinweis.
 - Stunden (Regie, Tagespauschale) werden nicht mit der Liste verglichen, dafür gelten die eigenen Regeln oben. Sonderfälle (Nachverrechnung, „von 3x“, „Entfernen“ ohne eigene Listenposition) werden übersprungen.
 - Neue Bezeichnungen oder eine andere Liste (z. B. Bodenleger): Regel in `ZUORDNUNG` ergänzen und mit `tools/test-lokal.mjs` + `PREISLISTE` prüfen.

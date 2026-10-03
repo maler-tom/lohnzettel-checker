@@ -8,7 +8,7 @@
         content="default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self'; form-action 'none'; base-uri 'none'">
   <meta name="referrer" content="no-referrer">
   <title>Lohnzettel-Checker</title>
-  <link rel="stylesheet" href="styles.css?v=0.6">
+  <link rel="stylesheet" href="styles.css?v=0.8">
 </head>
 <body>
   <header class="kopf">
@@ -62,7 +62,7 @@
   <footer class="fuss">
     <p><strong>Ohne Gewähr.</strong> Die App rechnet nach, was auf dem Zettel steht. Bei einer Abweichung frag im Lohnbüro nach, bevor du von einem Fehler ausgehst.</p>
     <p>Die genaue Lohnsteuer wird nicht nachgerechnet, weil sie vom Steuertarif abhängt.</p>
-    <p class="klein">Version 0.7 (02.10.2026) · PDF-Lesen mit <a href="vendor/pdfjs/LICENSE">pdf.js</a> (Apache 2.0)</p>
+    <p class="klein">Version 0.8 (03.10.2026) · PDF-Lesen mit <a href="vendor/pdfjs/LICENSE">pdf.js</a> (Apache 2.0)</p>
   </footer>
 
   <template id="tplMonat">
@@ -90,7 +90,7 @@
         </div>
       </details>
 
-      <h4 class="abschnitt">Aufträge (Malerliste)</h4>
+      <h4 class="abschnitt">Aufträge (Arbeiter-Abrechnung)</h4>
       <p class="saetze klein"></p>
       <ul class="pruefliste maler"></ul>
       <details class="aufklapp">
@@ -106,6 +106,6 @@
     </article>
   </template>
 
-  <script type="module" src="app.js?v=0.7"></script>
+  <script type="module" src="app.js?v=0.8"></script>
 </body>
 </html>

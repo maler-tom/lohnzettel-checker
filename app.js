@@ -255,7 +255,7 @@ function monatsKarte(m) {
   for (const b of m.bezuege)
     bz.append(tabellenZeile([`${b.code} ${b.name}`, b.menge != null ? b.menge.toLocaleString("de-DE", { minimumFractionDigits: 2 }) : "", b.satz != null ? euro(b.satz) : "", euro(b.betrag)]));
 
-  // Malerliste
+  // Arbeiter-Abrechnung (Aufträge)
   const ml = m.maler;
   const saetze = [];
   if (ml.regiesatz) saetze.push(`Regiesatz in diesem Monat: ${euro(ml.regiesatz)}/Std`);

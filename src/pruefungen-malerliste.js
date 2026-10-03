@@ -4,7 +4,7 @@ import { auftraegeAusAbrechnungen, betragFuerAuftrag } from "./malerliste.js";
 import { euro } from "./pruefungen.js";
 import { gleicheArbeitAndererPreis } from "./preise.js";
 
-// Tagespauschale je Maler und Stunde. Unabhängig vom Regiesatz (z. B. 18,10 €).
+// Tagespauschale je Arbeiter (Maler und Bodenleger) und Stunde. Unabhängig vom Regiesatz (z. B. 18,10 €).
 // Gilt ab Juli 2026 ("laut Besprechung"). Ältere Zettel hatten andere Sätze (Feb 2024: 18,50 €).
 // Ändert sich der Satz, hier einen neuen Eintrag ergänzen.
 const TAGESPAUSCHALE = [{ ab: "2026-07", satz: 21.0 }];
@@ -70,7 +70,7 @@ function pruefeAbrechnung(a, alle, basis, ich) {
     if (a.anteil == null) add("hinweis", "Anteil nicht gefunden", "Den Anteil pro Arbeiter konnte ich nicht lesen.");
     else if (tp && gleich(a.anteil, r2(a.summe / a.anzahlArbeiter)) && !gleich(a.anteil, soll))
       add("fehler", "Tagespauschale wurde geteilt",
-        `Die Tagespauschale (${euro(tp)}) steht jedem Maler voll zu, wurde aber durch ${a.anzahlArbeiter} geteilt. Richtig wären ${euro(soll)} statt ${euro(a.anteil)}, also ${euro(r2(soll - a.anteil))} zu wenig.`);
+        `Die Tagespauschale (${euro(tp)}) steht jedem Arbeiter voll zu, wurde aber durch ${a.anzahlArbeiter} geteilt. Richtig wären ${euro(soll)} statt ${euro(a.anteil)}, also ${euro(r2(soll - a.anteil))} zu wenig.`);
     else if (!gleich(a.anteil, soll))
       add("fehler", "Anteil", `${euro(a.summe)}${tp ? ` (davon Tagespauschale ${euro(tp)} ungeteilt)` : ""} ÷ ${a.anzahlArbeiter} ergibt ${euro(soll)}, abgerechnet sind ${euro(a.anteil)}.`);
     else if (!p.some((x) => x.status === "fehler"))
@@ -118,7 +118,7 @@ export function pruefeMalerliste(abrechnungen, gehalt) {
   const add = (status, titel, text) => abgleich.push({ status, titel, text });
 
   if (!auftraege.length) {
-    add("info", "Malerliste", "In dieser PDF sind keine Arbeiter-Abrechnungen enthalten.");
+    add("info", "Arbeiter-Abrechnung", "In dieser PDF sind keine Arbeiter-Abrechnungen enthalten.");
   } else if (Math.abs(diff) <= 0.05) {
     add("ok", "Aufträge = Monatslohn", `Alle ${auftraege.length} Aufträge ergeben ${euro(summe)}, als Monatslohn wurden ${euro(lohn)} abgerechnet.${diff ? " (Rundungsdifferenz)" : ""}`);
   } else {
