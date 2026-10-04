@@ -6,7 +6,7 @@ export const SAETZE = {
   2024: { lstSz: 0.06, szFreibetrag: 620, mv: 0.0153 },
 };
 
-// Sozialversicherung, Dienstnehmer-Anteil (Quelle: ÖGK/WKO, gleich 2024–2026):
+// Sozialversicherung, Dienstnehmer-Anteil (Quelle: ÖGK/WKO/AK „Meine Lohnabrechnung 2026“, gleich 2024–2026):
 // PV 10,25 + KV 3,87 + AV 2,95 + AK-Umlage 0,5 + Wohnbauförderung 0,5 = 18,07 %.
 // Sonderzahlungen ohne AK-Umlage und Wohnbauförderung = 17,07 %.
 const AV_VOLL = 0.0295;
@@ -36,7 +36,8 @@ export function svSoll(basis, jahr, sz = false, fall = {}) {
   if (fall.ab63) av = 0;
   if (fall.pvHalb && !sz) pv = 0.05125; // Halbierung gilt nur für den laufenden Bezug
   if (sz) { ak = 0; wbf = 0; }
-  const satz = r4(kv + pv + av + ak + wbf);
+  const sw = fall.sw ? 0.007 : 0; // Schlechtwetterbeitrag (Bau/Bauhilfsgewerbe), auch auf Sonderzahlungen
+  const satz = r4(kv + pv + av + ak + wbf + sw);
   let betrag = r2(b * satz);
   if (fall.pensionist && !sz) {
     if (!j.pensionistMax) return null; // gibt es in diesem Jahr nicht
@@ -48,11 +49,14 @@ export function svSoll(basis, jahr, sz = false, fall = {}) {
 // Sonderfälle, die einen niedrigeren (oder höheren) Abzug erklären können.
 // Die App kennt Alter und Status nicht, deshalb nur als Erklärung, nicht als "passt".
 export const SV_FAELLE = [
-  { fall: { ab63: true }, text: "Du bist 63 oder älter. Dann entfällt die Arbeitslosenversicherung (ab dem Monat nach dem Geburtstag)." },
-  { fall: { pvHalb: true }, text: "Du hast schon Anspruch auf Alterspension, nimmst sie aber noch nicht. Dann zahlst du nur die halbe Pensionsversicherung (Männer 65–68, Frauen ca. 60–63)." },
-  { fall: { pvHalb: true, ab63: true }, text: "Du hast schon Anspruch auf Alterspension, nimmst sie aber noch nicht, und bist 63 oder älter. Dann halbe Pensionsversicherung und keine Arbeitslosenversicherung." },
+  { fall: { ab63: true }, text: "Du bist ein Mann ab 63, oder du hast schon Anspruch auf Alterspension (Frauen derzeit ab etwa 61). Dann entfällt die Arbeitslosenversicherung, ab dem Monat nach dem Geburtstag." },
+  { fall: { pvHalb: true }, text: "Du hast schon Anspruch auf Alterspension, nimmst sie aber noch nicht (Bonusphase: Männer 65–68, Frauen derzeit etwa 61–64). Dann zahlst du nur die halbe Pensionsversicherung." },
+  { fall: { pvHalb: true, ab63: true }, text: "Du hast schon Anspruch auf Alterspension, nimmst sie aber noch nicht (Bonusphase: Männer 65–68, Frauen derzeit etwa 61–64). Dann halbe Pensionsversicherung und keine Arbeitslosenversicherung." },
   { fall: { pensionist: true, ab63: true }, text: "Du bekommst schon eine Alterspension und arbeitest dazu. 2024 und 2025 entfiel dann ein Teil der Pensionsversicherung, außerdem keine Arbeitslosenversicherung." },
   { fall: { lehrling: true }, text: "Du bist Lehrling. Dann gelten eigene, niedrigere Sätze (Krankenversicherung 1,67 %, Arbeitslosenversicherung höchstens 1,15 %, keine AK-Umlage und Wohnbauförderung)." },
+  { fall: { sw: true }, text: "Deine Firma fällt unter die Schlechtwetter-Regelung (Bau- und Bauhilfsgewerbe). Dann kommen 0,7 % Schlechtwetterbeitrag dazu (18,77 % statt 18,07 %)." },
+  { fall: { lehrling: true, sw: true }, text: "Du bist Lehrling in einer Firma mit Schlechtwetter-Regelung. Dann gelten die Lehrlingssätze plus 0,7 % Schlechtwetterbeitrag." },
+  { fall: { wien: true, sw: true }, text: "Du bist bei einer Firma in Wien mit Schlechtwetter-Regelung angemeldet (19,02 % statt 18,07 %)." },
   { fall: { wien: true }, text: "Du bist bei einer Firma in Wien angemeldet. Dort ist die Wohnbauförderung ab 2026 höher (18,32 % statt 18,07 %)." },
 ];
 
