@@ -5,6 +5,24 @@
 export const SAETZE = {
   2024: { svLfd: 0.1807, svSz: 0.1707, lstSz: 0.06, szFreibetrag: 620, mv: 0.0153 },
 };
+
+// Arbeitslosenversicherung (Dienstnehmer, normal 2,95 %) sinkt bei geringem Monatsbezug.
+// Grenzen je Jahr laut ÖGK: bis g0 = 0 %, bis g1 = 1 %, bis g2 = 2 %, darüber 2,95 %.
+// Gilt für den laufenden Bezug und jede Sonderzahlung getrennt.
+const AV_VOLL = 0.0295;
+export const AV_GRENZEN = {
+  2024: [1951, 2128, 2306],
+  2025: [2074, 2262, 2451],
+  2026: [2225, 2427, 2630],
+};
+// Liefert { satz, avSatz } für eine Beitragsgrundlage (normaler Satz minus AV-Kürzung)
+export function svSatzFuer(vollSatz, basis, jahr) {
+  const jahre = Object.keys(AV_GRENZEN).map(Number).sort((a, b) => a - b);
+  const g = AV_GRENZEN[jahre.filter((j) => j <= jahr).at(-1) ?? jahre[0]];
+  const avSatz = basis <= g[0] ? 0 : basis <= g[1] ? 0.01 : basis <= g[2] ? 0.02 : AV_VOLL;
+  return { satz: r4(vollSatz - AV_VOLL + avSatz), avSatz };
+}
+const r4 = (x) => Math.round(x * 10000) / 10000;
 export function saetzeFuer(jahr) {
   const jahre = Object.keys(SAETZE).map(Number).sort((a, b) => a - b);
   const passend = jahre.filter((j) => j <= jahr).at(-1) ?? jahre[0];
@@ -30,6 +48,10 @@ const r2 = (x) => Math.round((x + Number.EPSILON) * 100) / 100;
 const gleich = (a, b, tol = 0.011) => a != null && b != null && Math.abs(a - b) <= tol;
 export const euro = (x) =>
   x == null ? "–" : x.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+// Erklärung, wenn wegen geringem Bezug weniger Arbeitslosenversicherung anfällt
+const avText = (avSatz) => avSatz < AV_VOLL
+  ? ` Wegen des geringeren Bezugs zahlt man in diesem Monat nur ${prozent(avSatz)} statt ${prozent(AV_VOLL)} Arbeitslosenversicherung. Das ist richtig so.`
+  : "";
 const prozent = (x) => (x * 100).toLocaleString("de-DE", { maximumFractionDigits: 2 }) + " %";
 
 // Status: "ok" (passt), "hinweis" (auffällig, aber erklärbar), "fehler" (rechnerisch falsch), "info"
@@ -77,9 +99,10 @@ export function pruefe(z) {
     basisLfd, s.svBasisLfd);
 
   // 5) SV laufend
-  const svSoll = r2(s.svBasisLfd * satz.svLfd);
+  const svLfd = svSatzFuer(satz.svLfd, s.svBasisLfd, jahr);
+  const svSoll = r2(s.svBasisLfd * svLfd.satz);
   add(gleich(svSoll, s.svLfd) ? "ok" : "fehler", "Sozialversicherung",
-    `${prozent(satz.svLfd)} von ${euro(s.svBasisLfd)} = ${euro(svSoll)}` + (gleich(svSoll, s.svLfd) ? "." : `, abgezogen wurden ${euro(s.svLfd)}.`), svSoll, s.svLfd);
+    `${prozent(svLfd.satz)} von ${euro(s.svBasisLfd)} = ${euro(svSoll)}` + (gleich(svSoll, s.svLfd) ? "." : `, abgezogen wurden ${euro(s.svLfd)}.`) + avText(svLfd.avSatz), svSoll, s.svLfd);
 
   // 6) LSt-Basis laufend
   const lstBasisSoll = r2(s.svBasisLfd - s.svLfd);
@@ -100,9 +123,10 @@ export function pruefe(z) {
   if (szBezug || s.svBasisSz) {
     add(gleich(szBezug, s.svBasisSz) ? "ok" : "fehler", "Sonderzahlung: Basis",
       gleich(szBezug, s.svBasisSz) ? `${euro(szBezug)} Sonderzahlung, getrennt abgerechnet.` : `Sonderzahlung laut Zeilen ${euro(szBezug)}, als Basis gedruckt ${euro(s.svBasisSz)}.`, szBezug, s.svBasisSz);
-    const svSzSoll = r2(s.svBasisSz * satz.svSz);
+    const svSz = svSatzFuer(satz.svSz, s.svBasisSz, jahr);
+    const svSzSoll = r2(s.svBasisSz * svSz.satz);
     add(gleich(svSzSoll, s.svSz) ? "ok" : "fehler", "Sonderzahlung: SV",
-      `${prozent(satz.svSz)} von ${euro(s.svBasisSz)} = ${euro(svSzSoll)}` + (gleich(svSzSoll, s.svSz) ? "." : `, abgezogen wurden ${euro(s.svSz)}.`), svSzSoll, s.svSz);
+      `${prozent(svSz.satz)} von ${euro(s.svBasisSz)} = ${euro(svSzSoll)}` + (gleich(svSzSoll, s.svSz) ? "." : `, abgezogen wurden ${euro(s.svSz)}.`) + avText(svSz.avSatz), svSzSoll, s.svSz);
     const lstSzSoll = r2(s.lstBasisSz * satz.lstSz);
     add(gleich(lstSzSoll, s.lstSz) ? "ok" : "fehler", "Sonderzahlung: Lohnsteuer",
       `${prozent(satz.lstSz)} von ${euro(s.lstBasisSz)} = ${euro(lstSzSoll)}` + (gleich(lstSzSoll, s.lstSz) ? "." : `, abgezogen wurden ${euro(s.lstSz)}.`), lstSzSoll, s.lstSz);
