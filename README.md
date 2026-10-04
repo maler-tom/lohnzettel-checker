@@ -45,7 +45,7 @@ Neues Jahr mit anderen SV-Sätzen → in `src/pruefungen.js` bei `SAETZE` einen 
 
 ## Regeln der Malerliste (aus 33 echten Zetteln abgeleitet)
 
-- Zeile: Betrag = Satz × (Menge + 0,5 × Menge 50 % + 0,1 × Menge 10 %)
+- Zeile: Betrag = Satz × (Menge + 0,5 × Menge 50 % + 0,1 × Menge 10 %). Die 50-%-Spalte ist der Überstunden-Zuschlag, die 10-%-Spalte der Privatkunden-Zuschlag (Kunde zahlt selbst). Die App zeigt den Zuschlag als eigenen €-Betrag.
 - Team-Abrechnung („A + B"): Anteil = (Summe − Tagespauschale) ÷ Anzahl Arbeiter + Tagespauschale. Die Tagespauschale steht jedem Maler voll zu und wird nie geteilt.
 - Tagespauschale: 21,00 €/Std (ab Juli 2026), unabhängig vom Regiesatz. Ein anderer Satz wird als Fehler gemeldet.
 - Eigene Abrechnung enthält Team-Anteile als Zeile „Anteil aus A+B". Ohne eigene Abrechnung zählen die Team-Anteile.

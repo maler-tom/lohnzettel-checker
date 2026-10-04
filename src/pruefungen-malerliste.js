@@ -46,8 +46,13 @@ function pruefeAbrechnung(a, alle, basis, ich) {
     const soll = r2(pos.satz * faktor);
     if (!gleich(soll, pos.gesamt))
       add("fehler", `${pos.name}: falsch gerechnet`, `${menge(pos.menge)} ${pos.einheit} × ${euro(pos.satz)}${pos.p10 || pos.p50 ? " inkl. Zuschlag" : ""} ergibt ${euro(soll)}, abgerechnet sind ${euro(pos.gesamt)}.`);
-    if (pos.p10 || pos.p50)
-      add("info", `Zuschlag: ${pos.name}`, `${pos.p50 ? `50 % auf ${menge(pos.p50)} ${pos.einheit}` : ""}${pos.p50 && pos.p10 ? ", " : ""}${pos.p10 ? `10 % auf ${menge(pos.p10)} ${pos.einheit}` : ""} → ${euro(pos.gesamt)}.`);
+    // 50-%-Spalte = Überstunden, 10-%-Spalte = Privatkunde zahlt selbst
+    if (pos.p10 || pos.p50) {
+      const teile = [];
+      if (pos.p50) teile.push(`Überstunden-Zuschlag 50 % auf ${menge(pos.p50)} ${pos.einheit} = +${euro(r2(pos.satz * 0.5 * pos.p50))}`);
+      if (pos.p10) teile.push(`Privatkunden-Zuschlag 10 % auf ${menge(pos.p10)} ${pos.einheit} = +${euro(r2(pos.satz * 0.1 * pos.p10))}`);
+      add("info", `Zuschlag: ${pos.name}`, `${teile.join(", ")} (Position gesamt ${euro(pos.gesamt)}).`);
+    }
     if (pos.gesamt < 0)
       add("info", `Abzug: ${pos.name}`, `${euro(pos.gesamt)} werden in diesem Auftrag abgezogen.`);
     const tpSoll = pos.tagespauschale ? tpSollSatz(a.monat) : null;
