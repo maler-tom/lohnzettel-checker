@@ -138,7 +138,9 @@ links(108.0, y, "Summe der Bezüge:")
 rechts(547.2, y, de(summe)); y -= 12
 
 basis = round(sum(b[4] for b in bezuege if b[0] != "451" and not b[0].startswith("5")), 2)
-sv = round(basis * 0.1807, 2)
+# SV 18,07 %, bei geringem Bezug weniger Arbeitslosenversicherung (ÖGK-Staffel 2026)
+av = 0 if basis <= 2225 else 0.01 if basis <= 2427 else 0.02 if basis <= 2630 else 0.0295
+sv = round(basis * (0.1807 - 0.0295 + av), 2)
 lst_basis = round(basis - sv, 2)
 lst = 280.00
 abzuege = round(sv + lst, 2)

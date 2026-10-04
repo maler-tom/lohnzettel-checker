@@ -3,26 +3,79 @@
 
 // Sätze je Jahr. Ein Jahr ohne eigenen Eintrag nimmt den letzten bekannten Stand.
 export const SAETZE = {
-  2024: { svLfd: 0.1807, svSz: 0.1707, lstSz: 0.06, szFreibetrag: 620, mv: 0.0153 },
+  2024: { lstSz: 0.06, szFreibetrag: 620, mv: 0.0153 },
 };
 
-// Arbeitslosenversicherung (Dienstnehmer, normal 2,95 %) sinkt bei geringem Monatsbezug.
-// Grenzen je Jahr laut ÖGK: bis g0 = 0 %, bis g1 = 1 %, bis g2 = 2 %, darüber 2,95 %.
-// Gilt für den laufenden Bezug und jede Sonderzahlung getrennt.
+// Sozialversicherung, Dienstnehmer-Anteil (Quelle: ÖGK/WKO, gleich 2024–2026):
+// PV 10,25 + KV 3,87 + AV 2,95 + AK-Umlage 0,5 + Wohnbauförderung 0,5 = 18,07 %.
+// Sonderzahlungen ohne AK-Umlage und Wohnbauförderung = 17,07 %.
 const AV_VOLL = 0.0295;
-export const AV_GRENZEN = {
-  2024: [1951, 2128, 2306],
-  2025: [2074, 2262, 2451],
-  2026: [2225, 2427, 2630],
+// Werte je Jahr (ÖGK), jeden Jänner nachtragen:
+//  av: AV-Staffel bei geringem Bezug, bis av[0] = 0 %, bis av[1] = 1 %, bis av[2] = 2 %, darüber 2,95 %
+//      (laufender Bezug und jede Sonderzahlung getrennt betrachtet)
+//  hbg / hbgSz: Höchstbeitragsgrundlage monatlich / für Sonderzahlungen im Jahr
+//  pensionistMax: PV-Entfall für erwerbstätige Pensionisten (nur 2024 und 2025, nicht verlängert)
+export const SV_JAHR = {
+  2024: { av: [1951, 2128, 2306], hbg: 6060, hbgSz: 12120, pensionistMax: 106.28 },
+  2025: { av: [2074, 2262, 2451], hbg: 6450, hbgSz: 12900, pensionistMax: 112.98 },
+  2026: { av: [2225, 2427, 2630], hbg: 6930, hbgSz: 13860 },
 };
-// Liefert { satz, avSatz } für eine Beitragsgrundlage (normaler Satz minus AV-Kürzung)
-export function svSatzFuer(vollSatz, basis, jahr) {
-  const jahre = Object.keys(AV_GRENZEN).map(Number).sort((a, b) => a - b);
-  const g = AV_GRENZEN[jahre.filter((j) => j <= jahr).at(-1) ?? jahre[0]];
-  const avSatz = basis <= g[0] ? 0 : basis <= g[1] ? 0.01 : basis <= g[2] ? 0.02 : AV_VOLL;
-  return { satz: r4(vollSatz - AV_VOLL + avSatz), avSatz };
+const svJahr = (jahr) => {
+  const jahre = Object.keys(SV_JAHR).map(Number).sort((a, b) => a - b);
+  return SV_JAHR[jahre.filter((j) => j <= jahr).at(-1) ?? jahre[0]];
+};
+
+// Soll-Beitrag für eine Beitragsgrundlage. fall = Sonderfall (siehe SV_FAELLE), {} = normal.
+export function svSoll(basis, jahr, sz = false, fall = {}) {
+  const j = svJahr(jahr);
+  const g = j.av;
+  const b = Math.min(basis, sz ? j.hbgSz : j.hbg); // über der Höchstbeitragsgrundlage wird nichts mehr fällig
+  let av = basis <= g[0] ? 0 : basis <= g[1] ? 0.01 : basis <= g[2] ? 0.02 : AV_VOLL;
+  let kv = 0.0387, pv = 0.1025, ak = 0.005, wbf = fall.wien ? 0.0075 : 0.005;
+  if (fall.lehrling) { kv = 0.0167; ak = 0; wbf = 0; av = basis <= g[0] ? 0 : basis <= g[1] ? 0.01 : 0.0115; }
+  if (fall.ab63) av = 0;
+  if (fall.pvHalb && !sz) pv = 0.05125; // Halbierung gilt nur für den laufenden Bezug
+  if (sz) { ak = 0; wbf = 0; }
+  const satz = r4(kv + pv + av + ak + wbf);
+  let betrag = r2(b * satz);
+  if (fall.pensionist && !sz) {
+    if (!j.pensionistMax) return null; // gibt es in diesem Jahr nicht
+    betrag = r2(betrag - Math.min(r2(b * 0.1025), j.pensionistMax));
+  }
+  return { satz, betrag, avSatz: av, gedeckelt: b < basis ? b : null };
 }
-const r4 = (x) => Math.round(x * 10000) / 10000;
+
+// Sonderfälle, die einen niedrigeren (oder höheren) Abzug erklären können.
+// Die App kennt Alter und Status nicht, deshalb nur als Erklärung, nicht als "passt".
+export const SV_FAELLE = [
+  { fall: { ab63: true }, text: "Du bist 63 oder älter. Dann entfällt die Arbeitslosenversicherung (ab dem Monat nach dem Geburtstag)." },
+  { fall: { pvHalb: true }, text: "Du hast schon Anspruch auf Alterspension, nimmst sie aber noch nicht. Dann zahlst du nur die halbe Pensionsversicherung (Männer 65–68, Frauen ca. 60–63)." },
+  { fall: { pvHalb: true, ab63: true }, text: "Du hast schon Anspruch auf Alterspension, nimmst sie aber noch nicht, und bist 63 oder älter. Dann halbe Pensionsversicherung und keine Arbeitslosenversicherung." },
+  { fall: { pensionist: true, ab63: true }, text: "Du bekommst schon eine Alterspension und arbeitest dazu. 2024 und 2025 entfiel dann ein Teil der Pensionsversicherung, außerdem keine Arbeitslosenversicherung." },
+  { fall: { lehrling: true }, text: "Du bist Lehrling. Dann gelten eigene, niedrigere Sätze (Krankenversicherung 1,67 %, Arbeitslosenversicherung höchstens 1,15 %, keine AK-Umlage und Wohnbauförderung)." },
+  { fall: { wien: true }, text: "Du bist bei einer Firma in Wien angemeldet. Dort ist die Wohnbauförderung ab 2026 höher (18,32 % statt 18,07 %)." },
+];
+
+// Prüft einen SV-Beitrag (laufend oder Sonderzahlung) samt Sonderfällen
+function pruefeSv(add, titel, basis, ist, jahr, sz) {
+  const n = svSoll(basis, jahr, sz);
+  let zusatz = "";
+  if (n.avSatz < AV_VOLL) zusatz += ` Wegen des geringeren Bezugs fallen nur ${prozent(n.avSatz)} statt ${prozent(AV_VOLL)} Arbeitslosenversicherung an. Das ist richtig so.`;
+  if (n.gedeckelt) zusatz += ` Beiträge werden nur bis zur Höchstbeitragsgrundlage von ${euro(n.gedeckelt)} berechnet.`;
+  const rechnung = `${prozent(n.satz)} von ${euro(n.gedeckelt ?? basis)} = ${euro(n.betrag)}`;
+  if (gleich(n.betrag, ist)) return add("ok", titel, `${rechnung}.${zusatz}`, n.betrag, ist);
+  const treffer = SV_FAELLE.filter((f) => {
+    if (jahr < 2026 && f.fall.wien) return false; // Wien-Satz erst ab 2026 anders
+    const x = svSoll(basis, jahr, sz, f.fall);
+    return x && gleich(x.betrag, ist);
+  });
+  if (treffer.length)
+    return add("hinweis", titel, `Normal wären ${rechnung}, abgezogen wurden ${euro(ist)}. Das passt genau zu einem Sonderfall: ${treffer[0].text} Trifft das auf dich zu, ist alles richtig. Wenn nicht, frag beim Lohnbüro nach.`, n.betrag, ist);
+  const diff = r2(ist - n.betrag);
+  const hinweisAv = n.avSatz < AV_VOLL ? ` Bei diesem Bezug fallen nur ${prozent(n.avSatz)} statt ${prozent(AV_VOLL)} Arbeitslosenversicherung an, das ist schon eingerechnet.` : "";
+  add("fehler", titel, `${rechnung}, abgezogen wurden ${euro(ist)}, also ${euro(Math.abs(diff))} ${diff > 0 ? "zu viel" : "zu wenig"}.${hinweisAv}${n.gedeckelt ? zusatz : ""}`, n.betrag, ist);
+}
+const r4 = (x) => Math.round(x * 1e6) / 1e6; // Sätze wie 5,125 % brauchen mehr als 4 Stellen
 export function saetzeFuer(jahr) {
   const jahre = Object.keys(SAETZE).map(Number).sort((a, b) => a - b);
   const passend = jahre.filter((j) => j <= jahr).at(-1) ?? jahre[0];
@@ -48,11 +101,7 @@ const r2 = (x) => Math.round((x + Number.EPSILON) * 100) / 100;
 const gleich = (a, b, tol = 0.011) => a != null && b != null && Math.abs(a - b) <= tol;
 export const euro = (x) =>
   x == null ? "–" : x.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
-// Erklärung, wenn wegen geringem Bezug weniger Arbeitslosenversicherung anfällt
-const avText = (avSatz) => avSatz < AV_VOLL
-  ? ` Wegen des geringeren Bezugs zahlt man in diesem Monat nur ${prozent(avSatz)} statt ${prozent(AV_VOLL)} Arbeitslosenversicherung. Das ist richtig so.`
-  : "";
-const prozent = (x) => (x * 100).toLocaleString("de-DE", { maximumFractionDigits: 2 }) + " %";
+const prozent = (x) => (x * 100).toLocaleString("de-DE", { maximumFractionDigits: 3 }) + " %";
 
 // Status: "ok" (passt), "hinweis" (auffällig, aber erklärbar), "fehler" (rechnerisch falsch), "info"
 export function pruefe(z) {
@@ -92,17 +141,17 @@ export function pruefe(z) {
 
   // 4) SV-Basis laufend = alle Bezüge außer Reisekosten und Sonderzahlungen
   const basisLfd = r2(z.bezuege.filter((b) => !istReisekosten(b.code) && !istSonderzahlung(b.code)).reduce((a, b) => a + b.betrag, 0));
-  add(gleich(basisLfd, s.svBasisLfd) ? "ok" : "fehler", "SV-Basis",
+  const hbg = svJahr(jahr).hbg;
+  if (!gleich(basisLfd, s.svBasisLfd) && basisLfd > hbg && gleich(s.svBasisLfd, hbg))
+    add("ok", "SV-Basis", `Alle Bezüge ohne Reisekosten und Sonderzahlungen: ${euro(basisLfd)}. Gedruckt ist die Höchstbeitragsgrundlage von ${euro(hbg)}, darüber werden keine Beiträge fällig.`, hbg, s.svBasisLfd);
+  else add(gleich(basisLfd, s.svBasisLfd) ? "ok" : "fehler", "SV-Basis",
     gleich(basisLfd, s.svBasisLfd)
       ? `Alle Bezüge ohne Reisekosten und Sonderzahlungen: ${euro(basisLfd)}.`
       : `Erwartet ${euro(basisLfd)} (alle Bezüge ohne Reisekosten und Sonderzahlungen), gedruckt ${euro(s.svBasisLfd)}.`,
     basisLfd, s.svBasisLfd);
 
   // 5) SV laufend
-  const svLfd = svSatzFuer(satz.svLfd, s.svBasisLfd, jahr);
-  const svSoll = r2(s.svBasisLfd * svLfd.satz);
-  add(gleich(svSoll, s.svLfd) ? "ok" : "fehler", "Sozialversicherung",
-    `${prozent(svLfd.satz)} von ${euro(s.svBasisLfd)} = ${euro(svSoll)}` + (gleich(svSoll, s.svLfd) ? "." : `, abgezogen wurden ${euro(s.svLfd)}.`) + avText(svLfd.avSatz), svSoll, s.svLfd);
+  pruefeSv(add, "Sozialversicherung", s.svBasisLfd, s.svLfd, jahr, false);
 
   // 6) LSt-Basis laufend
   const lstBasisSoll = r2(s.svBasisLfd - s.svLfd);
@@ -123,10 +172,7 @@ export function pruefe(z) {
   if (szBezug || s.svBasisSz) {
     add(gleich(szBezug, s.svBasisSz) ? "ok" : "fehler", "Sonderzahlung: Basis",
       gleich(szBezug, s.svBasisSz) ? `${euro(szBezug)} Sonderzahlung, getrennt abgerechnet.` : `Sonderzahlung laut Zeilen ${euro(szBezug)}, als Basis gedruckt ${euro(s.svBasisSz)}.`, szBezug, s.svBasisSz);
-    const svSz = svSatzFuer(satz.svSz, s.svBasisSz, jahr);
-    const svSzSoll = r2(s.svBasisSz * svSz.satz);
-    add(gleich(svSzSoll, s.svSz) ? "ok" : "fehler", "Sonderzahlung: SV",
-      `${prozent(svSz.satz)} von ${euro(s.svBasisSz)} = ${euro(svSzSoll)}` + (gleich(svSzSoll, s.svSz) ? "." : `, abgezogen wurden ${euro(s.svSz)}.`) + avText(svSz.avSatz), svSzSoll, s.svSz);
+    pruefeSv(add, "Sonderzahlung: SV", s.svBasisSz, s.svSz, jahr, true);
     const lstSzSoll = r2(s.lstBasisSz * satz.lstSz);
     add(gleich(lstSzSoll, s.lstSz) ? "ok" : "fehler", "Sonderzahlung: Lohnsteuer",
       `${prozent(satz.lstSz)} von ${euro(s.lstBasisSz)} = ${euro(lstSzSoll)}` + (gleich(lstSzSoll, s.lstSz) ? "." : `, abgezogen wurden ${euro(s.lstSz)}.`), lstSzSoll, s.lstSz);

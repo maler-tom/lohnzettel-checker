@@ -41,7 +41,7 @@ Ausgabe: nur Monat und Prüfergebnis, keine persönlichen Daten.
 
 ## Wenn sich Sätze ändern
 
-Neues Jahr mit anderen SV-Sätzen → in `src/pruefungen.js` bei `SAETZE` einen Eintrag für das Jahr ergänzen. Jedes Jahr (Jänner) außerdem die Grenzen für die verminderte Arbeitslosenversicherung bei `AV_GRENZEN` nachtragen (ÖGK „AV-Beitrag bei geringem Einkommen"). Bei geringem Monatsbezug sinkt die SV von 18,07 % auf 17,12 / 16,12 / 15,12 %. Der Regiesatz wird pro Monat aus dem PDF gelesen (häufigster Stundensatz), nicht eingetragen. Die Tagespauschale (ab Juli 2026: 21,00 €/Std je Maler) steht in `src/pruefungen-malerliste.js` bei `TAGESPAUSCHALE`. Bei einem neuen Satz dort eine Zeile ergänzen.
+Neues Jahr mit anderen SV-Sätzen → in `src/pruefungen.js` bei `SAETZE` einen Eintrag für das Jahr ergänzen. Jedes Jahr (Jänner) außerdem bei `SV_JAHR` die ÖGK-Werte nachtragen: AV-Staffel bei geringem Einkommen (SV sinkt dann von 18,07 % auf 17,12 / 16,12 / 15,12 %) und Höchstbeitragsgrundlage. Passt der Abzug nicht zum normalen Satz, sucht die App einen Sonderfall, der ihn genau erklärt (ab 63, halbe PV, Pensionist 2024/25, Lehrling, Wien) und zeigt ihn als Hinweis. Test ohne echte Zettel: `node tools/test-sv.mjs`. Der Regiesatz wird pro Monat aus dem PDF gelesen (häufigster Stundensatz), nicht eingetragen. Die Tagespauschale (ab Juli 2026: 21,00 €/Std je Maler) steht in `src/pruefungen-malerliste.js` bei `TAGESPAUSCHALE`. Bei einem neuen Satz dort eine Zeile ergänzen.
 
 ## Regeln der Malerliste (aus 33 echten Zetteln abgeleitet)
 
