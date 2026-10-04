@@ -206,19 +206,22 @@ function pruefPunkt(x, wo = "") {
   return li;
 }
 
-// Passende Prüfungen eingeklappt, Infos offen
+// Passende Prüfungen und Infos eingeklappt
+function klappZeile(ul, punkte, klasse, titel) {
+  if (!punkte.length) return;
+  const li = el("li", `okzeile ${klasse}`);
+  const det = el("details");
+  const ul2 = el("ul");
+  punkte.forEach((x) => ul2.append(pruefPunkt(x)));
+  det.append(el("summary", null, titel), ul2);
+  li.append(det);
+  ul.append(li);
+}
+
 function fuelleListe(ul, pruefungen) {
-  const oks = pruefungen.filter((x) => x.status === "ok");
-  if (oks.length) {
-    const li = el("li", "okzeile");
-    const det = el("details");
-    const ul2 = el("ul");
-    oks.forEach((x) => ul2.append(pruefPunkt(x)));
-    det.append(el("summary", null, `✓ ${oks.length} ${oks.length === 1 ? "Prüfung passt" : "Prüfungen passen"}`), ul2);
-    li.append(det);
-    ul.append(li);
-  }
-  pruefungen.filter((x) => x.status === "info").forEach((x) => ul.append(pruefPunkt(x)));
+  const oks = pruefungen.filter((x) => x.status === "ok"), infos = pruefungen.filter((x) => x.status === "info");
+  klappZeile(ul, oks, "", `✓ ${oks.length} ${oks.length === 1 ? "Prüfung passt" : "Prüfungen passen"}`);
+  klappZeile(ul, infos, "infozeile", `ⓘ ${infos.length} ${infos.length === 1 ? "Info" : "Infos"}`);
 }
 
 function tabellenZeile(zellen, zahlAb = 1) {
