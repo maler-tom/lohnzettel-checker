@@ -230,14 +230,16 @@ const LOHNBUERO = "barbara.fehringer@wolitz.at";
 function mailAnsLohnbuero(monat, punkte) {
   const block = (liste) => liste.map((x) => `- ${x.titel}\n  ${x.text}`).join("\n\n");
   const fehler = punkte.filter((x) => x.status === "fehler"), hinweise = punkte.filter((x) => x.status === "hinweis");
+  const einer = punkte.length === 1;
   const teile = [
-    "Hallo,",
-    `beim Nachrechnen meines Lohnzettels für ${monatName(monat)} sind mir folgende Punkte aufgefallen. Könnt ihr das bitte überprüfen?`,
+    "Hallo Barbara,",
+    `ich habe meinen Lohnzettel für ${monatName(monat)} nachgerechnet und bin dabei auf ${einer ? "einen Punkt gestoßen, den" : "ein paar Punkte gestoßen, die"} ich mir nicht ganz erklären kann. Vielleicht übersehe ich auch etwas. Könntest du ${einer ? "ihn" : "sie"} dir bitte einmal anschauen?`,
   ];
-  if (fehler.length) teile.push(`Abweichungen:\n\n${block(fehler)}`);
-  if (hinweise.length) teile.push(`Bitte auch ansehen:\n\n${block(hinweise)}`);
-  teile.push("Danke und liebe Grüße");
-  const betreff = `Lohnzettel ${monatName(monat)} – bitte überprüfen`;
+  if (fehler.length) teile.push(`Was mir aufgefallen ist:\n\n${block(fehler)}`);
+  if (hinweise.length) teile.push(`${fehler.length ? "Bitte auch kurz ansehen" : "Was mir aufgefallen ist"}:\n\n${block(hinweise)}`);
+  teile.push("Falls alles seine Richtigkeit hat, reicht mir eine kurze Info, dann weiß ich Bescheid.");
+  teile.push("Danke dir schon im Voraus und liebe Grüße");
+  const betreff = `Lohnzettel ${monatName(monat)} – kurze Bitte um Kontrolle`;
   return `mailto:${LOHNBUERO}?subject=${encodeURIComponent(betreff)}&body=${encodeURIComponent(teile.join("\n\n"))}`;
 }
 
