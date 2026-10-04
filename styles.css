@@ -136,6 +136,10 @@ h2 { font-size: 1.05rem; margin: 0 0 12px; }
 .okzeile details ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .infozeile details summary { color: var(--info); }
 
+.mailbereich { margin-top: 10px; }
+.mailknopf { display: flex; text-decoration: none; margin-top: 0; box-sizing: border-box; }
+.mailbereich .klein { margin: 6px 0 0; }
+
 .aufklapp { margin-top: 8px; }
 .aufklapp summary { cursor: pointer; color: var(--akzent); font-weight: 600; padding: 6px 0; }
 .tabellenrahmen { overflow-x: auto; }

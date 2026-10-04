@@ -224,6 +224,23 @@ function fuelleListe(ul, pruefungen) {
   klappZeile(ul, infos, "infozeile", `ⓘ ${infos.length} ${infos.length === 1 ? "Info" : "Infos"}`);
 }
 
+const LOHNBUERO = "barbara.fehringer@wolitz.at";
+
+// Öffnet das eigene Mail-Programm mit fertigem Text. Gesendet wird erst dort, nach eigener Kontrolle.
+function mailAnsLohnbuero(monat, punkte) {
+  const block = (liste) => liste.map((x) => `- ${x.titel}\n  ${x.text}`).join("\n\n");
+  const fehler = punkte.filter((x) => x.status === "fehler"), hinweise = punkte.filter((x) => x.status === "hinweis");
+  const teile = [
+    "Hallo,",
+    `beim Nachrechnen meines Lohnzettels für ${monatName(monat)} sind mir folgende Punkte aufgefallen. Könnt ihr das bitte überprüfen?`,
+  ];
+  if (fehler.length) teile.push(`Abweichungen:\n\n${block(fehler)}`);
+  if (hinweise.length) teile.push(`Bitte auch ansehen:\n\n${block(hinweise)}`);
+  teile.push("Danke und liebe Grüße");
+  const betreff = `Lohnzettel ${monatName(monat)} – bitte überprüfen`;
+  return `mailto:${LOHNBUERO}?subject=${encodeURIComponent(betreff)}&body=${encodeURIComponent(teile.join("\n\n"))}`;
+}
+
 function tabellenZeile(zellen, zahlAb = 1) {
   const tr = el("tr");
   zellen.forEach((t, i) => {
@@ -247,9 +264,14 @@ function monatsKarte(m) {
 
   // Alles Auffällige ganz oben
   const top = q(".wichtig");
-  m.pruefungen.filter(wichtig).forEach((x) => top.append(pruefPunkt(x)));
-  m.maler.abgleich.filter(wichtig).forEach((x) => top.append(pruefPunkt(x)));
-  for (const a of m.maler.auftraege) a.pruefungen.filter(wichtig).forEach((x) => top.append(pruefPunkt(x, `Auftrag ${a.auftrag}: `)));
+  const auffaellig = [
+    ...m.pruefungen.filter(wichtig),
+    ...m.maler.abgleich.filter(wichtig),
+    ...m.maler.auftraege.flatMap((a) => a.pruefungen.filter(wichtig).map((x) => ({ ...x, titel: `Auftrag ${a.auftrag}: ${x.titel}` }))),
+  ];
+  auffaellig.forEach((x) => top.append(pruefPunkt(x)));
+  if (auffaellig.length) q(".mailknopf").href = mailAnsLohnbuero(m.monat, auffaellig);
+  else q(".mailbereich").remove();
   if (!top.children.length) top.remove();
 
   // Gehaltsseite
