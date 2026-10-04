@@ -131,7 +131,7 @@ h2 { font-size: 1.05rem; margin: 0 0 12px; }
 .pruefliste li.fehler .symbol { background: var(--fehler); color: var(--karte); }
 .pruefliste li.info .symbol { background: var(--info-bg); color: var(--info); }
 
-.okzeile { list-style: none; }
+.pruefliste li.okzeile { display: block; padding: 0; list-style: none; }
 .okzeile details summary { cursor: pointer; padding: 8px 10px; color: var(--ok); font-weight: 600; }
 .okzeile details ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 
