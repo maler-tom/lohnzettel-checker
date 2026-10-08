@@ -14,6 +14,8 @@
   --fehler-bg: #fde7e4;
   --info: #44506a;
   --info-bg: #eceff5;
+  --plus: #1f5fa8;
+  --plus-bg: #e4edf9;
   --radius: 14px;
   --schatten: 0 1px 2px rgb(0 0 0 / 5%), 0 4px 16px rgb(0 0 0 / 5%);
   color-scheme: light;
@@ -35,6 +37,8 @@
     --fehler-bg: #3d1a17;
     --info: #b4bdd0;
     --info-bg: #262b35;
+    --plus: #7fb2f0;
+    --plus-bg: #172638;
     --schatten: none;
     color-scheme: dark;
   }
@@ -177,3 +181,141 @@ td:first-child:has(.mini) { width: 22px; }
 #preislisteInfo.geladen strong { font-size: 1.05rem; }
 #preislisteInfo .haken { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--ok); color: var(--karte); font-size: 1.3rem; font-weight: 700; }
 #preislisteKarte.geladen { border-color: var(--ok); }
+
+/* Brutto-Check unter den Kennzahlen: Zeile antippen -> Erklärung */
+.bruttocheck { display: grid; gap: 6px; padding: 0 8px 8px; }
+.bruttozeile { border-radius: 10px; background: var(--ok-bg); }
+.bruttozeile.fehler { background: var(--fehler-bg); }
+.bruttozeile.hinweis { background: var(--hinweis-bg); }
+.bruttozeile.hinweis .bruttowert { color: var(--hinweis); font-weight: 700; }
+.bruttozeile summary { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center; padding: 8px 10px; cursor: pointer; list-style: none; }
+.bruttozeile summary::-webkit-details-marker { display: none; }
+.bruttotitel { font-weight: 600; font-size: 0.92rem; }
+.bruttowert { font-size: 0.88rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bruttozeile.ok .bruttowert { color: var(--ok); }
+.bruttozeile.fehler .bruttowert { color: var(--fehler); font-weight: 700; }
+.erklaerung { margin: 0; padding: 0 10px 10px 40px; font-size: 0.9rem; }
+
+/* Positionsabgleich Arbeitsblatt <-> Abrechnung */
+.nettowirkung { margin: 0 0 10px; }
+.nettowirkung strong, .verlaufsumme strong, .verlaufwert { font-variant-numeric: tabular-nums; }
+strong.minus, .verlaufwert.minus { color: var(--fehler); }
+strong.plus, .verlaufwert.plus { color: var(--ok); }
+.block { display: block; }
+.umbuchungen { margin-bottom: 10px; }
+.warnung { font-weight: 600; margin-top: 4px; }
+.auftragabgleich { border: 1px solid var(--linie); border-radius: 10px; margin: 6px 0; }
+.auftragabgleich.fehler { border-color: var(--fehler); }
+.auftragabgleich.hinweis { border-color: var(--hinweis); }
+.auftragabgleich summary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 8px 10px; cursor: pointer; }
+.auftragabgleich > .tabellenrahmen, .auftragabgleich > p { margin: 0 10px 10px; }
+.abgleichtabelle td:first-child { width: 46%; }
+.zeile-fehler td { background: var(--fehler-bg); }
+.zeile-hinweis td { background: var(--hinweis-bg); }
+.okhaken { color: var(--ok); font-weight: 800; }
+.plusmarke { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 4px; background: var(--info-bg); color: var(--info); font-weight: 800; font-size: 0.8rem; }
+.diffknopf {
+  display: inline-flex; flex-direction: column; align-items: flex-end; gap: 0;
+  min-height: 40px; padding: 4px 8px; border-radius: 8px; border: 1px solid currentColor;
+  background: var(--karte); font: inherit; font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+.diffknopf.fehler { color: var(--fehler); }
+.diffknopf.hinweis { color: var(--hinweis); }
+.diffknopf.info { color: var(--info); }
+.diffknopf[aria-expanded="true"] { background: currentColor; }
+.diffknopf[aria-expanded="true"] span { color: var(--karte); }
+.diffart { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; }
+.diffknopf:focus-visible { outline: 3px solid var(--akzent); outline-offset: 2px; }
+.erklaerzeile td { white-space: normal; text-align: left; padding: 8px 10px; font-size: 0.88rem; }
+.erklaerzeile td.fehler { background: var(--fehler-bg); }
+.erklaerzeile td.hinweis { background: var(--hinweis-bg); }
+.erklaerzeile td.info { background: var(--info-bg); }
+.aufteilung { font-size: 0.9rem; }
+.aufteilung.ok { color: var(--ok); }
+.aufteilung.fehler { color: var(--fehler); font-weight: 600; }
+.abgleichhinweis { font-size: 0.88rem; padding: 6px 8px; border-radius: 8px; background: var(--info-bg); }
+.abgleichhinweis.hinweis { background: var(--hinweis-bg); }
+
+/* Monatsprotokoll + Verlauf */
+.protokollbereich { margin-top: 16px; padding-top: 4px; border-top: 1px solid var(--linie); }
+.protokollmeldung { margin: 6px 0 0; }
+.protokollmeldung:empty { display: none; }
+.verlaufliste { list-style: none; margin: 0 0 8px; padding: 0; }
+.verlaufliste li { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--linie); }
+.verlaufwert { font-weight: 700; white-space: nowrap; }
+.verlaufsumme { margin: 4px 0 12px; font-weight: 600; }
+.knopfreihe { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-bottom: 8px; }
+.knopfreihe .dateiwahl { display: inline-flex; }
+
+/* Zugeklappte Blöcke (Brutto-Check, Positionsabgleich): Status in der Kopfzeile */
+.klappblock { border: 1px solid var(--linie); border-radius: 10px; margin: 0 0 14px; }
+.klappblock.ok { border-color: var(--ok); }
+.klappblock.hinweis { border-color: var(--hinweis); }
+.klappblock.fehler { border-color: var(--fehler); }
+.klappblock > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 10px; cursor: pointer; }
+.klapptitel { font-weight: 700; }
+.klappinfo { font-size: 0.88rem; color: var(--leise); font-variant-numeric: tabular-nums; }
+.klappblock.fehler .klappinfo { color: var(--fehler); font-weight: 600; }
+.klappblock.hinweis .klappinfo { color: var(--hinweis); font-weight: 600; }
+.positionsabgleich > .nettowirkung, .positionsabgleich > .umbuchungen, .positionsabgleich > .abgleichauftraege { margin-left: 10px; margin-right: 10px; }
+.positionsabgleich > .abgleichauftraege { margin-bottom: 10px; }
+.mini.info { background: var(--info-bg); color: var(--info); }
+.abweichungsklapp > .pruefliste { padding: 0 8px 8px; margin-bottom: 0; }
+
+/* Blau = zu deinen Gunsten (kommt nicht in die Mail) */
+.chip.plus { background: var(--plus-bg); color: var(--plus); }
+.pruefliste li.plus { background: var(--plus-bg); }
+.pruefliste li.plus .symbol { background: var(--plus); color: var(--karte); }
+.pruefliste li.plus .text { color: var(--text); }
+.mini.plus { background: var(--plus); }
+.bruttozeile.plus { background: var(--plus-bg); }
+.bruttozeile.plus .bruttowert { color: var(--plus); font-weight: 700; }
+.klappblock.plus, .auftragabgleich.plus { border-color: var(--plus); }
+.klappblock.plus .klappinfo { color: var(--plus); font-weight: 600; }
+.zeile-plus td { background: var(--plus-bg); }
+.diffknopf.plus { color: var(--plus); }
+.erklaerzeile td.plus { background: var(--plus-bg); }
+.abgleichhinweis.plus { background: var(--plus-bg); }
+.abweichungsklapp > .mailbereich { margin: 0 8px 10px; }
+.plusklapp > .pruefliste { padding: 0 8px 8px; }
+
+/* Verlauf drucken / als PDF: am Bildschirm unsichtbar, beim Drucken nur diese Übersicht */
+#druckbereich { display: none; }
+@media print {
+  body.druckmodus { background: #fff; color: #000; font-size: 10.5pt; }
+  body.druckmodus > *:not(#druckbereich) { display: none !important; }
+  body.druckmodus #druckbereich { display: block; }
+  #druckbereich h1 { font-size: 16pt; margin: 0 0 2pt; }
+  #druckbereich h2 { font-size: 12pt; margin: 14pt 0 4pt; }
+  #druckbereich .druckklein { font-size: 9pt; color: #333; margin: 3pt 0; }
+  #druckbereich .drucktabelle { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+  #druckbereich .drucktabelle th, #druckbereich .drucktabelle td { border-bottom: 0.5pt solid #999; padding: 3pt 4pt; color: #000; background: none; }
+  #druckbereich .drucktabelle th { text-align: left; font-weight: 700; }
+  #druckbereich .drucktabelle .zahl { text-align: right; white-space: nowrap; }
+  #druckbereich .drucktabelle tfoot td { font-weight: 700; border-top: 1pt solid #000; border-bottom: 0; }
+  #druckbereich .druckmonat { break-inside: avoid-page; }
+  #druckbereich tr { break-inside: avoid; }
+  #druckbereich .drucktabelle td:first-child { white-space: nowrap; overflow-wrap: normal; }
+  @page { margin: 15mm; }
+}
+.baustelle { font-size: 0.9rem; font-weight: 600; }
+
+/* Abweichung antippen -> Sprung zum Auftrag */
+.pruefliste li.sprung { cursor: pointer; }
+.pruefliste li.sprung:focus-visible { outline: 3px solid var(--akzent); outline-offset: 2px; }
+.sprunghinweis { display: block; margin-top: 4px; font-size: 0.85rem; font-weight: 600; color: var(--akzent); }
+@keyframes aufleuchten { 0%, 60% { box-shadow: 0 0 0 3px var(--akzent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+.aufleuchten { animation: aufleuchten 2.2s ease-out; }
+tr.aufleuchten td { animation: aufleuchten 2.2s ease-out; }
+
+/* × rechts: Punkt nicht ans Lohnbüro schicken */
+.pruefliste li.mitweg { grid-template-columns: 26px 1fr auto; }
+.wegknopf { align-self: start; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--linie); background: var(--karte); color: var(--leise); font: inherit; font-size: 1.2rem; line-height: 1; cursor: pointer; }
+.wegknopf:hover { color: var(--fehler); border-color: var(--fehler); }
+.wegknopf:focus-visible { outline: 3px solid var(--akzent); outline-offset: 2px; }
+.pruefliste li.weggelassen { opacity: 0.55; }
+.pruefliste li.weggelassen .titel { text-decoration: line-through; }
+.pruefliste li.weggelassen .wegknopf { color: var(--akzent); border-color: var(--akzent); }
+.mailweg { margin: 0 0 6px; font-weight: 600; }
+.mailweg:empty { display: none; }
+.mailknopf[hidden] { display: none; }

@@ -2,7 +2,7 @@
 
 Rechnet einen Lohnzettel (PDF, passwortgeschützt) im Browser nach: Bezugszeilen, Summe der Bezüge, SV-Basis, Sozialversicherung, Lohnsteuer-Basis, Sonderzahlungen, Abzüge und Auszahlung.
 
-**Datenschutz:** Alles läuft lokal im Browser. Die PDF und das Passwort verlassen das Gerät nicht. Die Content-Security-Policy in `index.html` verbietet Verbindungen zu fremden Servern. Im Browser (`localStorage`) gespeichert werden nur der Preisverlauf (Arbeit + €-Satz je Monat, ohne Namen und Beträge) und, falls hochgeladen, die eigene Preisliste. Beides kann man in der App wieder löschen.
+**Datenschutz:** Alles läuft lokal im Browser. Die PDF und das Passwort verlassen das Gerät nicht. Die Content-Security-Policy in `index.html` verbietet Verbindungen zu fremden Servern. Im Browser (`localStorage`) gespeichert werden nur der Preisverlauf (Arbeit + €-Satz je Monat, ohne Namen und Beträge) und, falls hochgeladen, die eigene Preisliste. Auf Knopfdruck kommt ein Monatsprotokoll in die IndexedDB: nur Monat, Auftragsnummern, Abweichungen (Tätigkeit, Mengen, €) und Netto-Wirkung, **keine** Namen, Adressen, SV-Nummer oder IBAN. Alles kann man in der App wieder löschen. Zum Lesen gibt es „Verlauf drucken / als PDF“ (Druckfenster des Browsers, eigenes Drucklayout in styles.css), zur Sicherung „Sicherung speichern/laden“ (JSON, nur für die App).
 
 ## Aufbau
 
@@ -15,6 +15,9 @@ Rechnet einen Lohnzettel (PDF, passwortgeschützt) im Browser nach: Bezugszeilen
 | `src/pruefungen-malerliste.js` | Prüfungen der Aufträge (Zeilen, Summen, Team-Anteil, Tagespauschale, Regiesatz, Regie-Text mit m²-Preis) und Abgleich mit dem Monatslohn |
 | `src/preise.js` | Preis-Plausibilität ohne Preisliste: gleiche Arbeit zu verschiedenen Preisen, Preis weicht vom üblichen Preis früherer Monate ab |
 | `src/preisliste.js` | liest eine hochgeladene „Lohnpreisliste SUB“ (ArtNr, Einheit, Preis) und vergleicht jede Akkordposition damit. Enthält nur die Zuordnung Bezeichnung → ArtNr, **keine Preise** |
+| `src/arbeitsblatt.js` | liest die Arbeitsblätter (eingereichte Positionen, „+“ = nachgetragen, Zeitraum, zusätzliche Arbeiter, Fortsetzungsseiten) und die „Personalabrechnung Detailaufstellung“ (Urlaub, Krankenstand, Auslösen) |
+| `src/abgleich.js` | Brutto-Check (Akkord = 135, Urlaub = 380/38x, Auslösen = 451), Positionsabgleich Arbeitsblatt ↔ Akkordabrechnung, Umbuchungen, Netto-Wirkung |
+| `src/protokoll.js` | Monatsprotokoll (nur erlaubte Felder) und IndexedDB-Speicher, Export/Import |
 | `src/auswertung.js` | fügt alles für eine PDF zusammen (von App und Test gleich benutzt) |
 | `vendor/pdfjs/` | pdf.js 4.10.38 (Apache 2.0), lokal eingebunden |
 | `beispiel/muster-lohnzettel.pdf` | erfundener Zettel, Passwort `muster`, mit zwei absichtlichen Fehlern (Reisekosten-Zeile, geteilte Tagespauschale) |
@@ -28,6 +31,10 @@ python -m http.server 8765 --directory .
 
 Dann http://localhost:8765 öffnen. Direkt als Datei (`file://`) geht es nicht, weil der PDF-Worker einen Webserver braucht.
 
+## Neue Version veröffentlichen
+
+Versionsnummer überall gleich erhöhen: `?v=…` in `index.html` (styles.css, app.js), bei **allen** Importen in `app.js` und `src/*.js` und in der Fußzeile. Sonst behalten Browser alte Programmteile im Zwischenspeicher und mischen alt und neu.
+
 ## Testen gegen echte Zettel (nur am eigenen PC)
 
 ```bash
@@ -38,6 +45,8 @@ LOHN_PW=<passwort> node tools/test-lokal.mjs "<Ordner mit Lohnzetteln>"
 Mit Preisliste: zusätzlich `PREISLISTE="<Pfad zur Preisliste.pdf>"` setzen. `FEHLER_TEST=1` senkt testweise einen Preis, um zu sehen, ob die Abweichung erkannt wird.
 
 Ausgabe: nur Monat und Prüfergebnis, keine persönlichen Daten.
+
+Brutto-Check und Positionsabgleich: `LOHN_PW=<passwort> node tools/test-arbeitsblatt.mjs "<PDF oder Ordner>"`. Am echten Zettel geprüft: Akkord-Summe gegen Monatslohn (1 Cent Rundung = grün), gekürzte Regiestunde (−0,50 Std = −9,05 €) und gleich große Erhöhung in einem anderen Auftrag als Umbuchung (Netto ±0,00 €), Team-Auftrag ÷ 2 Arbeiter.
 
 ## Wenn sich Sätze ändern
 
@@ -51,6 +60,17 @@ Neues Jahr mit anderen SV-Sätzen → in `src/pruefungen.js` bei `SAETZE` einen 
 - Eigene Abrechnung enthält Team-Anteile als Zeile „Anteil aus A+B". Ohne eigene Abrechnung zählen die Team-Anteile.
 - Mehrere Versionen derselben Abrechnung: die neueste zählt; passt der Abgleich nur mit einer anderen Version, wird das gesagt.
 - Abgleich: Summe aller Aufträge = Monatslohn (Pos. 135). Eine Differenz wird, wenn möglich, einem einzelnen Auftrag zugeordnet.
+
+## Arbeitsblatt ↔ Abrechnung (ab 0.14)
+
+- **Brutto-Check** unter der Brutto-Anzeige: Summe der Akkordabrechnungen = Lohnart 135; Urlaubstage der Detailaufstellung = Menge 380 (+ 381–389, z. B. Übersiedlungstag); Auslösen-Stunden = die 451-Zeile mit Satz „Prozent × Regiesatz“ (35 % von 18,10 € = 6,34 €). Bis 0,02 € = Rundung (grün). Farben überall nach Wirkung für dich: rot = zu deinem Nachteil, blau = zu deinen Gunsten, orange = unklar/selbst ansehen. Der Mail-Knopf erscheint nur bei Rotem oder bei „andere Einheit“ (falsch gebucht) und enthält nur diese Punkte, nie Blaues. Krankenstand wird nicht verglichen (410 mal in Tagen, mal in Stunden).
+- **Positionsabgleich** je Auftrag: gleiche Tätigkeit (Text ohne Satzzeichen, Klammerzusätze und Mengenangaben) + Einheit, mehrere Zeilen (z. B. je Raum) zusammengezählt. Danach lockerer: ähnlicher Text, andere Einheit („umgerechnet“, z. B. Wasserflecken m² → Std), und bleibt je Seite genau eine Position übrig, gilt sie als umbenannt. Ergebnis: gestrichen, gekürzt (rot), erhöht, nicht im Blatt (orange), mit Differenz in Menge und € (bei Team-Abrechnung dein Anteil).
+- „Wenn notwendig Nikotinfarbe streichen!“ ist nur ein Farbhinweis zur Fläche von „Streichen - 2x weiß“ (Menge immer m², auch wenn „Std“ dabeisteht, Preis wie 2x weiß) und wird nicht als eigene Position verglichen. Steht Nikotinfarbe doch eigens in der Abrechnung, muss der Preis wie bei 2x weiß sein.
+- Fahrtpauschale und Tagespauschale werden nicht verglichen, „- Anteil Kollege“-Zeilen auch nicht. Stehen dieselben Positionen auf eigener und Team-Abrechnung, zählen sie einmal.
+- Arbeitsblatt mit Zeitraum im Vormonat: nur Info. Läuft der Zeitraum über den Monat hinaus, sind Kürzungen nur Info (Rest kommt vielleicht nächsten Monat). Mehr als 12 Std je Arbeiter und Tag = vermutlich Tippfehler im Blatt, zählt nicht zur Netto-Wirkung.
+- Team-Aufträge: Aufteilung (Summe − Tagespauschale) ÷ Anzahl Arbeiter + Tagespauschale wird nachgerechnet und die Arbeiterzahl mit dem Arbeitsblatt (Arbeiter + Zusätzliche Arbeiter) verglichen.
+- **Umbuchung:** Kürzung und Erhöhung mit gleicher Stundenzahl werden als mögliche Umbuchung gruppiert, mit Netto-Wirkung. Warnung, wenn Stunden in einen Teamauftrag (nur Anteil) oder zu einem anderen Satz verschoben wurden.
+- Jedes rote/orange Feld zeigt beim Antippen die Erklärung, z. B. „Wand.- und Bodenfliesen abdecken: 2,00 Std eingereicht, 1,50 Std abgerechnet, −9,05 €“.
 
 ## Preisprüfung
 

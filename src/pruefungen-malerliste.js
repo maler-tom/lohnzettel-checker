@@ -1,8 +1,8 @@
 // Prüfungen für die Arbeiter-Abrechnungen (Malerliste) und der Abgleich mit dem Monatslohn.
 // Regeln abgeleitet aus 33 echten Lohnzetteln (Jän 2024 – Sep 2026).
-import { auftraegeAusAbrechnungen, betragFuerAuftrag } from "./malerliste.js";
-import { euro } from "./pruefungen.js";
-import { gleicheArbeitAndererPreis } from "./preise.js";
+import { auftraegeAusAbrechnungen, betragFuerAuftrag } from "./malerliste.js?v=0.14";
+import { euro } from "./pruefungen.js?v=0.14";
+import { gleicheArbeitAndererPreis } from "./preise.js?v=0.14";
 
 // Tagespauschale je Arbeiter (Maler und Bodenleger) und Stunde. Unabhängig vom Regiesatz (z. B. 18,10 €).
 // Gilt ab Juli 2026 ("laut Besprechung"). Ältere Zettel hatten andere Sätze (Feb 2024: 18,50 €).
@@ -14,7 +14,7 @@ const tpSollSatz = (monat) => (monat ? TAGESPAUSCHALE.filter((t) => monat >= t.a
 const REGIE_TEXT = /^\d{1,2}\.(\d{1,2}\.)?.*>|inkl\.?\s*FZ|Fahrzeit|Regie|^Abdeck|Ausbesserung/i;
 
 export const auftragStatus = (auf) =>
-  auf.pruefungen.some((x) => x.status === "fehler") ? "fehler" : auf.pruefungen.some((x) => x.status === "hinweis") ? "hinweis" : "ok";
+  auf.pruefungen.some((x) => x.status === "fehler") ? "fehler" : auf.pruefungen.some((x) => x.status === "hinweis") ? "hinweis" : auf.pruefungen.some((x) => x.status === "plus") ? "plus" : "ok";
 
 const r2 = (x) => Math.round((x + Number.EPSILON) * 100) / 100;
 const gleich = (a, b, tol = 0.011) => a != null && b != null && Math.abs(a - b) <= tol;
@@ -124,7 +124,7 @@ export function pruefeMalerliste(abrechnungen, gehalt) {
 
   if (!auftraege.length) {
     add("info", "Arbeiter-Abrechnung", "In dieser PDF sind keine Arbeiter-Abrechnungen enthalten.");
-  } else if (Math.abs(diff) <= 0.05) {
+  } else if (Math.abs(diff) <= 0.02) { // bis 2 Cent = Rundung
     add("ok", "Aufträge = Monatslohn", `Alle ${auftraege.length} Aufträge ergeben ${euro(summe)}, als Monatslohn wurden ${euro(lohn)} abgerechnet.${diff ? " (Rundungsdifferenz)" : ""}`);
   } else {
     // 1) Passt es mit einer anderen Version einer mehrfach vorhandenen Abrechnung?
@@ -133,7 +133,7 @@ export function pruefeMalerliste(abrechnungen, gehalt) {
       for (const a of auf.abrechnungen.filter((x) => x.versionen.length > 1)) {
         for (const v of a.versionen.filter((x) => x !== a)) {
           const neu = r2(summe - auf.betrag + betragFuerAuftrag(auf.abrechnungen, new Map([[a, v]])));
-          if (Math.abs(neu - lohn) <= 0.05) erklaert ??= { auf, v };
+          if (Math.abs(neu - lohn) <= 0.02) erklaert ??= { auf, v };
         }
       }
     }

@@ -8,7 +8,7 @@
         content="default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self'; form-action 'none'; base-uri 'none'">
   <meta name="referrer" content="no-referrer">
   <title>Lohnzettel-Checker</title>
-  <link rel="stylesheet" href="styles.css?v=0.13">
+  <link rel="stylesheet" href="styles.css?v=0.14">
 </head>
 <body>
   <header class="kopf">
@@ -19,7 +19,7 @@
   <main>
     <section class="karte datenschutz" aria-label="Datenschutz">
       <span class="schloss" aria-hidden="true">🔒</span>
-      <p><strong>Deine Daten bleiben auf deinem Gerät.</strong> Der Lohnzettel und dein Passwort werden nirgends hochgeladen und nicht gespeichert. Die Rechnung läuft nur hier im Browser. Nur deine Akkordpreise (Arbeit und €-Satz, ohne Namen und Beträge) und, falls du sie lädst, deine Preisliste merkt sich dieser Browser.</p>
+      <p><strong>Deine Daten bleiben auf deinem Gerät.</strong> Der Lohnzettel und dein Passwort werden nirgends hochgeladen und nicht gespeichert. Die Rechnung läuft nur hier im Browser. Nur deine Akkordpreise (Arbeit und €-Satz, ohne Namen und Beträge), falls du sie lädst deine Preisliste und Monatsprotokolle, die du selbst speicherst (ohne Namen, Adresse, SV-Nummer oder IBAN), merkt sich dieser Browser.</p>
     </section>
 
     <section class="karte" id="eingabe">
@@ -56,13 +56,31 @@
       <p class="klein">Einmal hochladen reicht. Die Liste bleibt nur in diesem Browser gespeichert.</p>
     </section>
 
+    <section class="karte" id="verlaufKarte">
+      <h2>Verlauf (Monatsprotokolle)</h2>
+      <p class="klein" id="verlaufInfo">Noch keine Monate gespeichert. Nach dem Prüfen kannst du einen Monat mit „Monatsprotokoll speichern“ festhalten.</p>
+      <ul class="verlaufliste" id="verlaufListe"></ul>
+      <p class="verlaufsumme" id="verlaufSumme" hidden></p>
+      <button type="button" class="knopf haupt breit" id="verlaufDrucken">🖨 Verlauf drucken / als PDF</button>
+      <p class="klein">Zum Lesen, Ausdrucken oder Abheften. Am Handy im Druckfenster „Als PDF speichern“ wählen.</p>
+      <div class="knopfreihe">
+        <button type="button" class="knopf" id="verlaufExport">Sicherung speichern unter …</button>
+        <label class="dateiwahl">
+          <input type="file" id="verlaufImport" accept="application/json,.json">
+          <span class="knopf">Sicherung laden</span>
+        </label>
+        <button type="button" class="linkknopf klein" id="verlaufAlleWeg">Alles löschen</button>
+      </div>
+      <p class="klein">Gespeichert werden nur Monat, Auftragsnummern, Abweichungen und Netto-Wirkung, nur in diesem Browser. Die Sicherung ist eine Datei für diese App (z. B. für ein neues Handy), nicht zum Lesen.</p>
+    </section>
+
     <section id="ergebnis" aria-live="polite"></section>
   </main>
 
   <footer class="fuss">
     <p><strong>Ohne Gewähr.</strong> Die App rechnet nach, was auf dem Zettel steht. Bei einer Abweichung frag im Lohnbüro nach, bevor du von einem Fehler ausgehst.</p>
     <p>Die genaue Lohnsteuer wird nicht nachgerechnet, weil sie vom Steuertarif abhängt.</p>
-    <p class="klein">Version 0.13 (06.10.2026) · PDF-Lesen mit <a href="vendor/pdfjs/LICENSE">pdf.js</a> (Apache 2.0)</p>
+    <p class="klein">Version 0.14 (08.10.2026) · PDF-Lesen mit <a href="vendor/pdfjs/LICENSE">pdf.js</a> (Apache 2.0)</p>
   </footer>
 
   <template id="tplMonat">
@@ -76,11 +94,22 @@
         <div><dt>Abzüge</dt><dd class="abzuege"></dd></div>
         <div><dt>Auszahlung</dt><dd class="netto"></dd></div>
       </dl>
-      <ul class="pruefliste wichtig"></ul>
-      <div class="mailbereich">
-        <a class="knopf breit mailknopf">✉ E-Mail ans Lohnbüro</a>
-        <p class="klein">Öffnet dein Mail-Programm mit allen Abweichungen. Geht an das Lohnbüro (Barbara Fehringer). Durchlesen, dann selbst senden.</p>
-      </div>
+      <details class="klappblock bruttoklapp">
+        <summary><span class="mini"></span><span class="klapptitel">Brutto-Check</span><span class="klappinfo"></span></summary>
+        <div class="bruttocheck"></div>
+      </details>
+      <details class="klappblock plusklapp">
+        <summary><span class="mini"></span><span class="klapptitel">Zu deinen Gunsten</span><span class="klappinfo"></span></summary>
+        <ul class="pruefliste pluspunkte"></ul>
+      </details>
+      <details class="klappblock abweichungsklapp">
+        <summary><span class="mini"></span><span class="klapptitel">Abweichungen</span><span class="klappinfo"></span></summary>
+        <ul class="pruefliste wichtig"></ul>
+        <div class="mailbereich">
+          <a class="knopf breit mailknopf">✉ E-Mail ans Lohnbüro</a>
+          <p class="klein">Öffnet dein Mail-Programm mit den Abweichungen zu deinem Nachteil (rot) und falsch gebuchten Positionen (andere Einheit als eingereicht). Geht an das Lohnbüro (Barbara Fehringer). Durchlesen, dann selbst senden.</p>
+        </div>
+      </details>
 
       <h4 class="abschnitt">Gehaltsseite</h4>
       <ul class="pruefliste gehalt"></ul>
@@ -107,9 +136,25 @@
           </table>
         </div>
       </details>
+
+      <h4 class="abschnitt">Arbeitsblatt ↔ Abrechnung</h4>
+      <details class="klappblock positionsabgleich">
+        <summary><span class="mini"></span><span class="klapptitel">Positionsabgleich</span><span class="klappinfo"></span></summary>
+        <p class="nettowirkung"></p>
+        <ul class="pruefliste umbuchungen"></ul>
+        <div class="abgleichauftraege"></div>
+      </details>
+
+      <div class="protokollbereich">
+        <button type="button" class="knopf breit protokollknopf">💾 Monatsprotokoll speichern</button>
+        <p class="klein protokollmeldung" role="status" aria-live="polite"></p>
+      </div>
     </article>
   </template>
 
-  <script type="module" src="app.js?v=0.13"></script>
+  <!-- Nur beim Drucken sichtbar: Übersicht der gespeicherten Monatsprotokolle -->
+  <section id="druckbereich" aria-hidden="true"></section>
+
+  <script type="module" src="app.js?v=0.14"></script>
 </body>
 </html>

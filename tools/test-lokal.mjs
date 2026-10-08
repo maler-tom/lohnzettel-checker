@@ -31,14 +31,14 @@ if (process.env.PREISLISTE) {
   console.log(`Preisliste Stand ${liste.stand}, ${liste.anzahl} Artikel: ${r.verglichen} Positionen verglichen, ${r.ohne} ohne Zuordnung
 `);
 }
-const zaehl = { ok: 0, hinweis: 0, fehler: 0 };
+const zaehl = { ok: 0, hinweis: 0, fehler: 0, plus: 0 };
 for (const m of monate) {
   zaehl[m.status]++;
   console.log(`${m.monat}  ${m.status.padEnd(7)}  Aufträge: ${m.maler.auftraege.length}  Regiesatz: ${m.maler.regiesatz ?? "-"}`);
-  const zeige = (x, wo = "") => (!nurAuffaellig || x.status === "fehler" || x.status === "hinweis") && console.log(`     ${x.status.padEnd(7)} ${wo}${x.titel}: ${x.text}`);
+  const zeige = (x, wo = "") => (!nurAuffaellig || x.status === "fehler" || x.status === "hinweis" || x.status === "plus") && console.log(`     ${x.status.padEnd(7)} ${wo}${x.titel}: ${x.text}`);
   m.pruefungen.forEach((x) => zeige(x));
   m.maler.abgleich.forEach((x) => zeige(x));
   for (const a of m.maler.auftraege) a.pruefungen.forEach((x) => zeige(x, `[${a.auftrag}] `));
 }
 console.log(`
-${monate.length} Monate: ${zaehl.ok} ok, ${zaehl.hinweis} mit Hinweis, ${zaehl.fehler} mit Fehler`);
+${monate.length} Monate: ${zaehl.ok} ok, ${zaehl.plus} zu deinen Gunsten, ${zaehl.hinweis} mit Hinweis, ${zaehl.fehler} mit Fehler`);

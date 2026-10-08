@@ -220,5 +220,6 @@ export function pruefe(z) {
 export function gesamtStatus(pruefungen) {
   if (pruefungen.some((x) => x.status === "fehler")) return "fehler";
   if (pruefungen.some((x) => x.status === "hinweis")) return "hinweis";
+  if (pruefungen.some((x) => x.status === "plus")) return "plus"; // nur Abweichungen zu deinen Gunsten
   return "ok";
 }
