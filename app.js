@@ -1,10 +1,10 @@
 import * as pdfjs from "./vendor/pdfjs/pdf.min.mjs";
-import { zeilenAusItems } from "./src/parser.js?v=0.15";
-import { euro } from "./src/pruefungen.js?v=0.15";
-import { werteAus, pruefePreisverlauf, pruefePreisliste } from "./src/auswertung.js?v=0.15";
-import { istPreisliste, lesePreisliste } from "./src/preisliste.js?v=0.15";
-import { menge, vorzeichenEuro } from "./src/abgleich.js?v=0.15";
-import { protokollAusMonat, leseExport, exportDaten, ladeProtokolle, ladeProtokoll, speichereProtokoll, loescheProtokoll, loescheAlleProtokolle } from "./src/protokoll.js?v=0.15";
+import { zeilenAusItems } from "./src/parser.js?v=0.16";
+import { euro } from "./src/pruefungen.js?v=0.16";
+import { werteAus, pruefePreisverlauf, pruefePreisliste } from "./src/auswertung.js?v=0.16";
+import { istPreisliste, lesePreisliste } from "./src/preisliste.js?v=0.16";
+import { menge, vorzeichenEuro } from "./src/abgleich.js?v=0.16";
+import { protokollAusMonat, leseExport, exportDaten, ladeProtokolle, ladeProtokoll, speichereProtokoll, loescheProtokoll, loescheAlleProtokolle } from "./src/protokoll.js?v=0.16";
 
 pdfjs.GlobalWorkerOptions.workerSrc = "./vendor/pdfjs/pdf.worker.min.mjs";
 
@@ -422,7 +422,7 @@ function zeigeBruttoCheck(box, zeilen) {
 }
 
 // ---------- Positionsabgleich Arbeitsblatt <-> Akkordabrechnung ----------
-const ART_WORT = { gestrichen: "gestrichen", gekürzt: "gekürzt", erhöht: "erhöht", neu: "nicht im Blatt", umgerechnet: "andere Einheit", umgebucht: "umgebucht" };
+const ART_WORT = { gestrichen: "gestrichen", gekürzt: "gekürzt", erhöht: "erhöht", neu: "nicht im Blatt", umgerechnet: "andere Einheit", umgebucht: "umgebucht", flaeche: "gleiche Fläche" };
 const plusMinus = (x) => (x < -0.005 ? "minus" : x > 0.005 ? "plus" : null);
 
 function zeigePositionsabgleich(box, ab) {
@@ -471,11 +471,11 @@ function abgleichAuftrag(a) {
       tr.className = `zeile-${z.status}${z.umbuchung ? " umbuchungszeile" : ""}`;
       tr.dataset.name = z.name;
       body.append(tr);
-      if (z.status === "ok" && z.art !== "umgebucht") { tr.lastChild.append(el("span", "okhaken", "✓")); continue; }
+      if (z.status === "ok" && z.art !== "umgebucht" && z.art !== "flaeche") { tr.lastChild.append(el("span", "okhaken", "✓")); continue; }
       // Rotes/oranges/grünes Feld: antippen zeigt die Erklärung darunter
       const knopf = el("button", `diffknopf ${z.status}`);
       knopf.type = "button";
-      const diffText = z.ausgeglichen ? "ausgeglichen" : z.euroDein != null ? vorzeichenEuro(z.euroDein) : z.diff != null ? `${z.diff > 0 ? "+" : "−"}${menge(Math.abs(z.diff))} ${z.einheit}` : "?";
+      const diffText = z.art === "flaeche" ? "±0,00 €" : z.ausgeglichen ? "ausgeglichen" : z.euroDein != null ? vorzeichenEuro(z.euroDein) : z.diff != null ? `${z.diff > 0 ? "+" : "−"}${menge(Math.abs(z.diff))} ${z.einheit}` : "?";
       knopf.append(el("span", "diffart", ART_WORT[z.art]), el("span", "diffwert", diffText));
       knopf.setAttribute("aria-expanded", "false");
       const erkl = el("tr", "erklaerzeile");
@@ -562,7 +562,7 @@ async function zeigeVerlauf(meldung) {
 zeigeVerlauf();
 
 // ---------- Verlauf drucken / als PDF (Druckfenster des Browsers, nichts verlässt das Gerät) ----------
-const DRUCK_ART = { gestrichen: "gestrichen", gekürzt: "gekürzt", erhöht: "erhöht", neu: "nicht im Arbeitsblatt", umgerechnet: "andere Einheit", umgebucht: "umgebucht" };
+const DRUCK_ART = { gestrichen: "gestrichen", gekürzt: "gekürzt", erhöht: "erhöht", neu: "nicht im Arbeitsblatt", umgerechnet: "andere Einheit", umgebucht: "umgebucht", flaeche: "gleiche Fläche" };
 const wirkungWort = (x) => (x < -0.005 ? "zu deinem Nachteil" : x > 0.005 ? "zu deinen Gunsten" : "ausgeglichen");
 
 function baueDruck(liste) {

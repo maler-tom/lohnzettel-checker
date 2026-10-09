@@ -1,5 +1,5 @@
 // Brutto-Check (Akkord, Urlaub, Auslösen) und Positionsabgleich Arbeitsblatt ↔ Akkordabrechnung.
-import { euro } from "./pruefungen.js?v=0.15";
+import { euro } from "./pruefungen.js?v=0.16";
 
 const r2 = (x) => Math.round((x + Number.EPSILON) * 100) / 100;
 const RUNDUNG = 0.02; // bis 2 Cent = Rundung
@@ -287,11 +287,16 @@ function stichwort(a, b) {
   return null;
 }
 
+// Gleiche Fläche nur einmal: Bei Entfernungsarbeiten (abscheren, entfernen, ...) zahlt das Lohnbüro dieselbe Fläche nur
+// einmal. Beispiel: 169,57 m² Leimfarbe abscheren + 60,47 m² Rauhfaseranstrich entfernen eingereicht, abgerechnet
+// 109,10 m² Leimfarbe + 60,47 m² Raufaser -> die Kürzung ist genau die Raufaser-Fläche = kein Fehler (Tom, 09.10.2026).
+const ENTFERNEN = /abscher|entfern|abwasch|abbeiz|abkratz|abl[öo]s|abschleif/i;
+
 function gegenrechnen(zeilen, k) {
   // Nur echte Abweichungen: keine Infos (Vormonat, läuft weiter), Tippfehler, anderen Einheiten oder Abzugszeilen (Menge < 0)
   const offen = (z) => z.diff != null && !z.unplausibel && (z.status === "fehler" || z.status === "plus") && z.abgerechnet >= 0;
   const minus = zeilen.filter((z) => offen(z) && z.diff < 0), plus = zeilen.filter((z) => offen(z) && z.diff > 0);
-  if (!minus.length || !plus.length) return;
+  if (!minus.length) return;
   const rest = new Map([...minus, ...plus].map((z) => [z, Math.abs(z.diff)]));
   const umbuchungen = [];
   const buche = (m, p, wort) => {
@@ -311,7 +316,17 @@ function gegenrechnen(zeilen, k) {
     const mo = minus.filter((x) => gleich(x, m) && rest.get(x) > 0.005), po = plus.filter((x) => gleich(x, m) && rest.get(x) > 0.005);
     if (mo.length === 1 && po.length === 1 && mo[0] === m) buche(m, po[0], null);
   }
-  if (!umbuchungen.length) return;
+  // 3) gleiche Fläche: offene Kürzung einer Entfernungsarbeit GENAU so groß (±1 Cent-Stelle) wie eine andere eingereichte
+  //    Entfernungsarbeit mit gleicher Einheit (jede nur einmal). Andere Größe = Zufall, bleibt rot.
+  const benutzt = new Set();
+  for (const m of minus.filter((x) => ENTFERNEN.test(x.name))) {
+    const r = rest.get(m);
+    const andere = zeilen.find((x) => x !== m && !benutzt.has(x) && x.eingereicht > 0 && Math.abs(x.eingereicht - r) <= 0.011 && ENTFERNEN.test(x.name) && gleich(x, m));
+    if (!andere) continue;
+    benutzt.add(andere);
+    rest.set(m, 0);
+    (m.flaeche ??= []).push({ menge: r, mit: andere.name });
+  }
 
   const satzCent = (z) => (z.satz != null ? r2(z.satz) : null); // gedruckter Satz, ohne Rundungsreste aus Betrag ÷ Menge
   const neueZeilen = [];
@@ -335,15 +350,15 @@ function gegenrechnen(zeilen, k) {
   }
   // Gekürzte/erhöhte Zeilen behalten nur den Rest ohne Ausgleich
   for (const z of rest.keys()) {
-    if (!z.umgebucht) continue;
+    if (!z.umgebucht && !z.flaeche) continue;
     z.diff = r2(Math.sign(z.diff) * rest.get(z));
     z.euroGesamt = z.satz != null ? r2(z.diff * z.satz) : null;
     z.euroDein = z.euroGesamt != null ? r2(z.euroGesamt * z.anteil) : null;
     if (Math.abs(z.diff) < 0.005) {
-      // ganz ausgeglichen: Farbe der Umbuchung, zählt nicht extra (steckt in der Umbuchungszeile)
+      // ganz ausgeglichen: Farbe der Umbuchung (gleiche Fläche = grün), zählt nicht extra
       z.ausgeglichen = true;
-      z.art = "umgebucht";
-      z.status = z.umgebucht.some((x) => x.status === "hinweis") ? "hinweis" : "ok";
+      z.art = z.umgebucht ? "umgebucht" : "flaeche";
+      z.status = z.umgebucht?.some((x) => x.status === "hinweis") ? "hinweis" : "ok";
       z.euroGesamt = z.euroDein = 0;
     }
     z.erklaerung = erklaere(z, k);
@@ -369,12 +384,13 @@ function erklaere(z, k) {
   const e = (x, einheit = z.einheit) => `${menge(x)} ${einheit}`.trim();
   const titel = z.nameAbger ? `${z.name} (abgerechnet als „${z.nameAbger}“)` : z.name;
   let t;
-  if (z.umgebucht) {
-    // Teil oder alles ist im selben Auftrag auf/von einer anderen Position umgebucht
-    t = `${titel}: ${z.eingereicht ? `${e(z.eingereicht)} eingereicht` : "nicht im Arbeitsblatt"}, ${z.abgerechnet ? `${e(z.abgerechnet, z.einheitAbger ?? z.einheit)} abgerechnet` : "nicht abgerechnet"}. `;
-    const wohin = z.umgebucht.map((x) => `${e(x.menge)} ${x.richtung} „${x.mit}“`).join(", ");
-    t += `Davon ${wohin} umgebucht (siehe Umbuchung).`;
-    if (z.ausgeglichen) return t + " Damit ist die Menge ausgeglichen.";
+  if (z.umgebucht || z.flaeche) {
+    // Teil oder alles ist im selben Auftrag auf/von einer anderen Position umgebucht oder dieselbe Fläche
+    t = `${titel}: ${z.eingereicht ? `${e(z.eingereicht)} eingereicht` : "nicht im Arbeitsblatt"}, ${z.abgerechnet ? `${e(z.abgerechnet, z.einheitAbger ?? z.einheit)} abgerechnet` : "nicht abgerechnet"}.`;
+    if (z.umgebucht) t += ` Davon ${z.umgebucht.map((x) => `${e(x.menge)} ${x.richtung} „${x.mit}“`).join(", ")} umgebucht (siehe Umbuchung).`;
+    for (const f of z.flaeche ?? [])
+      t += ` ${z.umgebucht ? "Weitere" : "Die fehlenden"} ${e(f.menge)} sind genau die Fläche von „${f.mit}“, die du im selben Auftrag eigens eingereicht hast. Dieselbe Fläche wird nur einmal abgerechnet, darum kein Fehler.`;
+    if (z.ausgeglichen) return z.umgebucht ? t + " Damit ist die Menge ausgeglichen." : t;
     t += ` Es bleiben ${vzMenge(z.diff)} ${z.einheit} ohne Ausgleich`;
     t += z.euroGesamt == null ? ", Satz unbekannt, € nicht berechenbar." : z.anteil < 1 ? `: ${vorzeichenEuro(z.euroGesamt)} für das Team, dein Anteil (÷ ${Math.round(1 / z.anteil)}) ${vorzeichenEuro(z.euroDein)}.` : `: ${vorzeichenEuro(z.euroDein)} (${vzMenge(z.diff)} ${z.einheit} × ${euro(z.satz)}).`;
     if (z.plus) t += " Die Position war nachgetragen (+).";

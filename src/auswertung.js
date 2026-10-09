@@ -1,13 +1,13 @@
 // Wertet die Seiten EINER PDF aus: Gehaltsseite + Arbeiter-Abrechnungen.
 // Wird von der App und vom Test-Werkzeug gleich benutzt.
-import { istGehaltsseite, leseGehaltsseite } from "./parser.js?v=0.15";
-import { pruefe, gesamtStatus } from "./pruefungen.js?v=0.15";
-import { istArbeiterSeite, leseArbeiterSeite, fasseAbrechnungenZusammen } from "./malerliste.js?v=0.15";
-import { pruefeMalerliste, auftragStatus } from "./pruefungen-malerliste.js?v=0.15";
-import { ergaenzePreisverlauf } from "./preise.js?v=0.15";
-import { pruefeGegenPreisliste } from "./preisliste.js?v=0.15";
-import { istArbeitsblatt, leseArbeitsblatt, fasseArbeitsblaetterZusammen, istDetailaufstellung, leseDetailaufstellung } from "./arbeitsblatt.js?v=0.15";
-import { bruttoCheck, positionsAbgleich, nettoWirkung } from "./abgleich.js?v=0.15";
+import { istGehaltsseite, leseGehaltsseite } from "./parser.js?v=0.16";
+import { pruefe, gesamtStatus } from "./pruefungen.js?v=0.16";
+import { istArbeiterSeite, leseArbeiterSeite, fasseAbrechnungenZusammen } from "./malerliste.js?v=0.16";
+import { pruefeMalerliste, auftragStatus } from "./pruefungen-malerliste.js?v=0.16";
+import { ergaenzePreisverlauf } from "./preise.js?v=0.16";
+import { pruefeGegenPreisliste } from "./preisliste.js?v=0.16";
+import { istArbeitsblatt, leseArbeitsblatt, fasseArbeitsblaetterZusammen, istDetailaufstellung, leseDetailaufstellung } from "./arbeitsblatt.js?v=0.16";
+import { bruttoCheck, positionsAbgleich, nettoWirkung } from "./abgleich.js?v=0.16";
 
 // seitenZeilen: Array von Zeilen je Seite (aus zeilenAusItems)
 export function werteAus(seitenZeilen) {
@@ -50,16 +50,16 @@ export function werteAus(seitenZeilen) {
 function arbeitsblattAbgleich(blaetter, maler, monat) {
   if (!blaetter.length) return null;
   const abgleich = positionsAbgleich(blaetter, maler, monat);
-  const WORT = { gestrichen: "gestrichen", gekürzt: "gekürzt", erhöht: "erhöht", neu: "nicht im Arbeitsblatt", umgerechnet: "andere Einheit", umgebucht: "umgebucht" };
+  const WORT = { gestrichen: "gestrichen", gekürzt: "gekürzt", erhöht: "erhöht", neu: "nicht im Arbeitsblatt", umgerechnet: "andere Einheit", umgebucht: "umgebucht", flaeche: "gleiche Fläche" };
   for (const a of abgleich) {
     const auf = maler.auftraege.find((x) => x.auftrag === a.auftrag);
     const ziel = auf ? auf.pruefungen : maler.abgleich;
     const vor = auf ? "" : `Arbeitsblatt ${a.auftrag}: `;
     // Ganz ausgeglichene Positionen nicht extra melden, die Umbuchungszeile sagt alles
-    for (const z of a.zeilen.filter((x) => (x.status !== "ok" || x.umbuchung) && !x.ausgeglichen))
+    for (const z of a.zeilen.filter((x) => (x.status !== "ok" || x.umbuchung || x.art === "flaeche") && (!x.ausgeglichen || x.art === "flaeche")))
       ziel.push({ status: z.status, titel: `${vor}${z.name}: ${WORT[z.art]}`, text: z.erklaerung, euro: z.euroDein, art: z.art, bereich: "arbeitsblatt", sprung: { auftrag: a.auftrag, name: z.name } });
     for (const h of a.hinweise) ziel.push({ status: h.status, titel: `${vor}Arbeitsblatt`, text: h.text, bereich: "arbeitsblatt", sprung: { auftrag: a.auftrag } });
-    if (auf && a.zeilen.length && a.zeilen.every((x) => x.status === "ok" && x.art !== "umgebucht"))
+    if (auf && a.zeilen.length && a.zeilen.every((x) => x.status === "ok" && x.art !== "umgebucht" && x.art !== "flaeche"))
       auf.pruefungen.push({ status: "ok", titel: "Arbeitsblatt", text: `Alle ${a.zeilen.length} Positionen wie eingereicht abgerechnet.`, bereich: "arbeitsblatt" });
   }
   // umbuchungen bleibt leer: keine Gegenrechnung zwischen Aufträgen (alte Protokolle können noch welche haben)

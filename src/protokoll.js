@@ -2,7 +2,7 @@
 // KEINE Namen, Adressen, SV-Nummer oder IBAN. Gespeichert nur in diesem Browser (IndexedDB).
 
 const r2 = (x) => Math.round((x + Number.EPSILON) * 100) / 100;
-const ARTEN = ["gestrichen", "gekürzt", "erhöht", "neu", "umgerechnet", "umgebucht"];
+const ARTEN = ["gestrichen", "gekürzt", "erhöht", "neu", "umgerechnet", "umgebucht", "flaeche"];
 const nr = (x) => (typeof x === "number" && Number.isFinite(x) ? r2(x) : null);
 const auftragNr = (x) => (typeof x === "string" && /^\d{4,12}$/.test(x) ? x : null);
 // Tätigkeitstext kurz halten (Bezeichnung der Arbeit, keine Person)

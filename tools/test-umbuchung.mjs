@@ -84,5 +84,30 @@ const umb = (ab) => ab.flatMap((a) => a.zeilen).filter((z) => z.umbuchung);
   erwarte("Umbuchung ohne Stichwort orange", u?.status === "hinweis" && /kein gemeinsames Stichwort/.test(u.erklaerung), u?.status);
 }
 
+// 8) Gleiche Fläche (September 2026): Leimfarbe 169,57 + Raufaser 60,47 eingereicht, Leimfarbe nur 109,10 abgerechnet
+{
+  const ab = pruefe([blatt("20260009", [["Leimfarbe abscheren", 169.57], ["Rauhfaseranstrich entfernen", 60.47], ["Streichen - 2x weiß", 169.57]])],
+    [abrechnung("20260009", [["Leimfarbe abscheren", 109.10, 0.60], ["Rauhfaseranstrich entfernen", 60.47, 0.70], ["Streichen - 2x weiß", 169.57, 1.00]])]);
+  const l = zeile(ab, "Leimfarbe abscheren");
+  erwarte("gleiche Fläche grün", l.status === "ok" && l.art === "flaeche", `${l.status} ${l.art}`);
+  erwarte("Erklärung gleiche Fläche", /genau die Fläche von „Rauhfaseranstrich entfernen“/.test(l.erklaerung), l.erklaerung);
+  erwarte("Netto ±0", nettoWirkung(ab) === 0, nettoWirkung(ab));
+}
+
+// 9) Kürzung NICHT genau so groß wie die andere Fläche (80 gekürzt, Raufaser 60): Zufall, alles bleibt rot
+{
+  const ab = pruefe([blatt("20260010", [["Leimfarbe abscheren", 200], ["Rauhfaseranstrich entfernen", 60]])],
+    [abrechnung("20260010", [["Leimfarbe abscheren", 120, 0.60], ["Rauhfaseranstrich entfernen", 60, 0.70]])]);
+  const l = zeile(ab, "Leimfarbe abscheren");
+  erwarte("−80 m² bleibt rot", l.status === "fehler" && l.diff === -80 && l.euroDein === -48 && !l.flaeche, `${l.status} ${l.diff} ${l.euroDein}`);
+}
+
+// 10) Keine Entfernungsarbeit: Streichen gekürzt um genau die Menge einer anderen Position -> bleibt rot
+{
+  const ab = pruefe([blatt("20260011", [["Streichen - 2x weiß", 200], ["Vorstreichen", 60]])],
+    [abrechnung("20260011", [["Streichen - 2x weiß", 140, 1.00], ["Vorstreichen", 60, 0.52]])]);
+  erwarte("Streichen bleibt rot", zeile(ab, "Streichen - 2x weiß").status === "fehler");
+}
+
 console.log(fehler ? `\n${fehler} Test(s) FALSCH` : "\nAlle Tests OK");
 process.exit(fehler ? 1 : 0);
