@@ -1,6 +1,6 @@
 // Testet die Umbuchung im selben Auftrag mit erfundenen Zahlen (keine echten Lohnzettel).
 // Aufruf: node tools/test-umbuchung.mjs
-import { positionsAbgleich, nettoWirkung } from "../src/abgleich.js";
+import { positionsAbgleich, nettoWirkung, umrechnenMitSatz } from "../src/abgleich.js";
 
 const blatt = (auftrag, positionen) => ({ auftrag, daten: ["2026-09-10"], zusaetzlich: [], ort: "", tage: 1, positionen: positionen.map(([name, menge, einheit = "m²"]) => ({ name, menge, einheit, plus: false })) });
 const abrechnung = (auftrag, positionen) => ({
@@ -132,6 +132,16 @@ const umb = (ab) => ab.flatMap((a) => a.zeilen).filter((z) => z.umbuchung);
     [abrechnung("20260014", [["Leimfarbe abscheren", 60, 0.60], ["Überscheren und abkehren", 150, 0.12]])]);
   const u = zeile(ab, "Überscheren und abkehren");
   erwarte("Überscheren −50 bleibt rot", u.status === "fehler" && /steht dir zu/.test(u.erklaerung), u.status);
+}
+
+// 14) Andere Einheit, Satz nur aus anderen Monaten (Mai 2026): Schimmelbehandlung 5 m² (0,48 €/m²) als 0,50 Std × 18,10 € bezahlt
+{
+  const ab = pruefe([blatt("20260015", [["Schimmelbehandlung", 5]])], [abrechnung("20260015", [["Schimmelbehandlung", 0.5, 18.10, "Std"]])]);
+  const z = zeile(ab, "Schimmelbehandlung");
+  erwarte("ohne Satz im Monat orange", z.art === "umgerechnet" && z.status === "hinweis" && z.euroGesamt == null, `${z.art} ${z.status}`);
+  umrechnenMitSatz(z, 0.48, 12, ab[0]);
+  erwarte("mit Satz aus Verlauf blau +6,65 €", z.status === "plus" && z.euroDein === 6.65, `${z.status} ${z.euroDein}`);
+  erwarte("Erklärung mit Rechnung", /5,00 m² × 0,48 € = 2,40 €.*bezahlt sind 9,05 €.*zu deinen Gunsten/.test(z.erklaerung), z.erklaerung);
 }
 
 console.log(fehler ? `\n${fehler} Test(s) FALSCH` : "\nAlle Tests OK");

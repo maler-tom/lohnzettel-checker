@@ -1,13 +1,13 @@
 // Wertet die Seiten EINER PDF aus: Gehaltsseite + Arbeiter-Abrechnungen.
 // Wird von der App und vom Test-Werkzeug gleich benutzt.
-import { istGehaltsseite, leseGehaltsseite } from "./parser.js?v=0.17";
-import { pruefe, gesamtStatus } from "./pruefungen.js?v=0.17";
-import { istArbeiterSeite, leseArbeiterSeite, fasseAbrechnungenZusammen } from "./malerliste.js?v=0.17";
-import { pruefeMalerliste, auftragStatus } from "./pruefungen-malerliste.js?v=0.17";
-import { ergaenzePreisverlauf } from "./preise.js?v=0.17";
-import { pruefeGegenPreisliste } from "./preisliste.js?v=0.17";
-import { istArbeitsblatt, leseArbeitsblatt, fasseArbeitsblaetterZusammen, istDetailaufstellung, leseDetailaufstellung } from "./arbeitsblatt.js?v=0.17";
-import { bruttoCheck, positionsAbgleich, nettoWirkung } from "./abgleich.js?v=0.17";
+import { istGehaltsseite, leseGehaltsseite } from "./parser.js?v=0.18";
+import { pruefe, gesamtStatus } from "./pruefungen.js?v=0.18";
+import { istArbeiterSeite, leseArbeiterSeite, fasseAbrechnungenZusammen } from "./malerliste.js?v=0.18";
+import { pruefeMalerliste, auftragStatus } from "./pruefungen-malerliste.js?v=0.18";
+import { ergaenzePreisverlauf, preisSchluessel } from "./preise.js?v=0.18";
+import { pruefeGegenPreisliste } from "./preisliste.js?v=0.18";
+import { istArbeitsblatt, leseArbeitsblatt, fasseArbeitsblaetterZusammen, istDetailaufstellung, leseDetailaufstellung } from "./arbeitsblatt.js?v=0.18";
+import { bruttoCheck, positionsAbgleich, nettoWirkung, umrechnenMitSatz } from "./abgleich.js?v=0.18";
 
 // seitenZeilen: Array von Zeilen je Seite (aus zeilenAusItems)
 export function werteAus(seitenZeilen) {
@@ -76,8 +76,34 @@ function mitStatus(m) {
 // Gibt den neuen Verlauf zurück, den die App auf dem Gerät speichert.
 export function pruefePreisverlauf(monate, verlauf) {
   const neu = ergaenzePreisverlauf(monate, verlauf);
+  for (const m of monate) satzAusVerlauf(m, neu);
   monate.forEach(mitStatus);
   return neu;
+}
+
+// „Andere Einheit“ ohne Satz im Monat: üblichen Satz aus allen Monaten des Verlaufs nehmen (mindestens 2 Belege).
+// Beispiel Mai 2026: Schimmelbehandlung 5 m² eingereicht (sonst immer 0,48 €/m² = 2,40 €), 0,50 Std = 9,05 € bezahlt -> +6,65 €.
+const MIN_BELEGE_UMRECHNEN = 2;
+function satzAusVerlauf(m, alle) {
+  const ab = m.arbeitsblatt;
+  if (!ab) return;
+  let geaendert = false;
+  for (const a of ab.abgleich)
+    for (const z of a.zeilen) {
+      if (z.art !== "umgerechnet" || z.euroGesamt != null || z.status !== "hinweis" || !z.eingereicht) continue;
+      const k = preisSchluessel({ name: z.name, einheit: z.einheit });
+      const zaehl = new Map();
+      for (const preise of Object.values(alle)) for (const s of preise[k] ?? []) zaehl.set(s, (zaehl.get(s) ?? 0) + 1);
+      const [satz, anzahl] = [...zaehl].sort((x, y) => y[1] - x[1] || y[0] - x[0])[0] ?? [];
+      if (!satz || anzahl < MIN_BELEGE_UMRECHNEN) continue;
+      umrechnenMitSatz(z, satz, anzahl, a);
+      // den Punkt beim Auftrag (Abweichungen / Zu deinen Gunsten, Mail) nachziehen
+      const auf = m.maler.auftraege.find((x) => x.auftrag === a.auftrag);
+      const p = (auf ? auf.pruefungen : m.maler.abgleich).find((x) => x.bereich === "arbeitsblatt" && x.art === "umgerechnet" && x.sprung?.name === z.name);
+      if (p) Object.assign(p, { status: z.status, text: z.erklaerung, euro: z.euroDein });
+      geaendert = true;
+    }
+  if (geaendert) ab.netto = nettoWirkung(ab.abgleich);
 }
 
 // Vergleicht die Akkordpreise mit der hochgeladenen Preisliste. Gibt { verglichen, ohne } zurück.

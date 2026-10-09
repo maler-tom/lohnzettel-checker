@@ -6,7 +6,7 @@
 //   oder hinter der Einheit (x ~549) = nachgetragen. Eingerückte Zeilen (x ~81) sind Notizen.
 // - "Zeitraum (n Tage)" mit einem oder mehreren Datumsbereichen, danach "Zusätzliche Arbeiter".
 // - Lange Blätter gehen weiter auf "Arbeitsblatt zu Auftrag 10000001 - Name   Seite: 2".
-import { zahl, zeilenText } from "./parser.js?v=0.17";
+import { zahl, zeilenText } from "./parser.js?v=0.18";
 
 const ZAHL = /^-?\d{1,3}(?:\.\d{3})*,\d{2}$/;
 const DATUM = /(\d\d)\.(\d\d)\.(20\d\d)/g;

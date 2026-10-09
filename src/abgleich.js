@@ -1,5 +1,5 @@
 // Brutto-Check (Akkord, Urlaub, Auslösen) und Positionsabgleich Arbeitsblatt ↔ Akkordabrechnung.
-import { euro } from "./pruefungen.js?v=0.17";
+import { euro } from "./pruefungen.js?v=0.18";
 
 const r2 = (x) => Math.round((x + Number.EPSILON) * 100) / 100;
 const RUNDUNG = 0.02; // bis 2 Cent = Rundung
@@ -234,7 +234,8 @@ export function positionsAbgleich(blaetter, maler, monat) {
       const satz = a ? (a.menge ? a.betrag / a.menge : a.satz) : satzFuer(b);
       const anteil = a?.anteil ?? teamAnteil;
       let euroGesamt;
-      if (umgerechnet) { const sb = satzFuer(b); euroGesamt = sb != null ? r2(a.betrag - eingereicht * sb) : null; }
+      let satzBlatt = null;
+      if (umgerechnet) { satzBlatt = satzFuer(b); euroGesamt = satzBlatt != null ? r2(a.betrag - eingereicht * satzBlatt) : null; }
       else euroGesamt = satz != null ? r2(diff * satz) : null;
       const euroDein = euroGesamt != null ? r2(euroGesamt * anteil) : null;
       const richtung = umgerechnet ? (euroGesamt ?? 0) : diff;
@@ -248,7 +249,7 @@ export function positionsAbgleich(blaetter, maler, monat) {
         auftrag, name: (b ?? a).name.replace(/[\s,;:.]+$/, ""), einheit: (b ?? a).einheit, einheitAbger: a?.einheit ?? null,
         eingereicht, abgerechnet, diff, satz, euroGesamt, euroDein, art, status, unplausibel,
         plus: !!b?.plus, team: !!a?.team || (!a && !auf.eigene.length && !!team), anteil,
-        nameAbger: a && b && norm(a.name) !== norm(b.name) ? a.name : null,
+        nameAbger: a && b && norm(a.name) !== norm(b.name) ? a.name : null, satzBlatt,
       };
       zeile.erklaerung = erklaere(zeile, { vormonat, laeuftWeiter, zeitraum, teamArbeiter: team?.anzahlArbeiter });
       eintrag.zeilen.push(zeile);
@@ -380,6 +381,17 @@ function gegenrechnen(zeilen, k) {
   zeilen.splice(0, zeilen.length, ...neu);
 }
 
+// „Andere Einheit“ ohne Satz im eigenen Monat (z. B. Schimmelbehandlung 5 m² eingereicht, 0,50 Std abgerechnet):
+// Satz nachträglich aus dem Preisverlauf anderer Monate setzen (Aufruf aus pruefePreisverlauf). eintrag = Auftrag im Abgleich.
+export function umrechnenMitSatz(z, satz, anzahl, eintrag) {
+  z.satzBlatt = satz;
+  z.satzQuelle = `üblicher Satz aus anderen Monaten, ${anzahl}×`;
+  z.euroGesamt = r2(z.abgerechnet * z.satz - z.eingereicht * satz);
+  z.euroDein = r2(z.euroGesamt * z.anteil);
+  z.status = Math.abs(z.euroGesamt) <= RUNDUNG ? "ok" : z.euroGesamt < 0 ? "fehler" : "plus";
+  z.erklaerung = erklaere(z, eintrag);
+}
+
 function erklaereUmbuchung(z) {
   const u = z.umbuchung, e = (x) => `${menge(x)} ${u.einheit}`.trim();
   let t = `${e(u.menge)} „${u.von}“ → „${u.nach}“: im selben Auftrag umgebucht, nicht gestrichen.`;
@@ -416,8 +428,13 @@ function erklaere(z, k) {
   else if (z.art === "neu") t = `${titel}: nicht im Arbeitsblatt, ${e(z.abgerechnet)} abgerechnet`;
   else t = `${titel}: ${e(z.eingereicht)} eingereicht, ${e(z.abgerechnet, z.einheitAbger ?? z.einheit)} abgerechnet`;
   if (z.art !== "ok") {
-    if (z.art === "umgerechnet")
-      t += z.euroGesamt == null ? ` (andere Einheit, der eingereichte Wert ist nicht in € umrechenbar). Bitte selbst ansehen.` : `, Unterschied zum üblichen Satz ${vorzeichenEuro(z.euroDein)}.`;
+    if (z.art === "umgerechnet" && z.euroGesamt == null)
+      t += ` (andere Einheit, der eingereichte Wert ist nicht in € umrechenbar). Bitte selbst ansehen.`;
+    else if (z.art === "umgerechnet") {
+      const bezahlt = r2(z.abgerechnet * z.satz), waere = r2(z.eingereicht * z.satzBlatt);
+      t += `. Eingereicht wären das ${e(z.eingereicht)} × ${euro(z.satzBlatt)} = ${euro(waere)}${z.satzQuelle ? ` (${z.satzQuelle})` : ""}, bezahlt sind ${euro(bezahlt)}`;
+      t += Math.abs(z.euroGesamt) <= RUNDUNG ? ", passt." : `: ${z.anteil < 1 ? `${vorzeichenEuro(z.euroGesamt)} für das Team, dein Anteil (÷ ${Math.round(1 / z.anteil)}) ` : ""}${vorzeichenEuro(z.euroDein)}${z.euroGesamt > 0 ? " zu deinen Gunsten." : ", zu wenig bezahlt."}`;
+    }
     else if (z.euroGesamt == null) t += ` (${vzMenge(z.diff)} ${z.einheit}, Satz unbekannt, € nicht berechenbar).`;
     else if (z.anteil < 1) t += `, ${vorzeichenEuro(z.euroGesamt)} für das Team, dein Anteil (÷ ${Math.round(1 / z.anteil)}) ${vorzeichenEuro(z.euroDein)}.`;
     else t += `, ${vorzeichenEuro(z.euroDein)}${z.satz ? ` (${vzMenge(z.diff)} ${z.einheit} × ${euro(z.satz)})` : ""}.`;

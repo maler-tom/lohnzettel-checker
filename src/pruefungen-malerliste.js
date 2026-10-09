@@ -1,8 +1,8 @@
 // Prüfungen für die Arbeiter-Abrechnungen (Malerliste) und der Abgleich mit dem Monatslohn.
 // Regeln abgeleitet aus 33 echten Lohnzetteln (Jän 2024 – Sep 2026).
-import { auftraegeAusAbrechnungen, betragFuerAuftrag } from "./malerliste.js?v=0.17";
-import { euro } from "./pruefungen.js?v=0.17";
-import { gleicheArbeitAndererPreis } from "./preise.js?v=0.17";
+import { auftraegeAusAbrechnungen, betragFuerAuftrag } from "./malerliste.js?v=0.18";
+import { euro } from "./pruefungen.js?v=0.18";
+import { gleicheArbeitAndererPreis } from "./preise.js?v=0.18";
 
 // Tagespauschale je Arbeiter (Maler und Bodenleger) und Stunde. Unabhängig vom Regiesatz (z. B. 18,10 €).
 // Gilt ab Juli 2026 ("laut Besprechung"). Ältere Zettel hatten andere Sätze (Feb 2024: 18,50 €).
