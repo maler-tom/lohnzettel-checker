@@ -1,5 +1,5 @@
 // Brutto-Check (Akkord, Urlaub, Auslösen) und Positionsabgleich Arbeitsblatt ↔ Akkordabrechnung.
-import { euro } from "./pruefungen.js?v=0.20";
+import { euro } from "./pruefungen.js?v=0.21";
 
 const r2 = (x) => Math.round((x + Number.EPSILON) * 100) / 100;
 const RUNDUNG = 0.02; // bis 2 Cent = Rundung
@@ -298,6 +298,8 @@ function stichwort(a, b) {
 const ENTFERNEN = /abscher|entfern|abwasch|abbeiz|abkratz|abl[öo]s|abschleif/i;
 // Als Regie bezahlt ohne bekannten m²-Satz: erst ab so viel € je eingereichter Einheit sicher „zu deinen Gunsten“
 const MIN_EURO_JE_EINHEIT = 1;
+// Allgemeine Regie-Bezeichnung im Arbeitsblatt ohne eigenen Arbeitstext
+const REGIE_ALLGEMEIN = /^\s*regie(stunden?(satz)?)?\s*[.:]?\s*$/i;
 
 function gegenrechnen(zeilen, k) {
   // Nur echte Abweichungen: keine Infos (Vormonat, läuft weiter), Tippfehler, anderen Einheiten oder Abzugszeilen (Menge < 0)
@@ -318,6 +320,14 @@ function gegenrechnen(zeilen, k) {
   const paare = minus.flatMap((m) => plus.filter((p) => gleich(m, p)).map((p) => ({ m, p, wort: stichwort(m.name, p.name) })))
     .filter((x) => x.wort).sort((a, b) => Math.abs(a.m.diff + a.p.diff) - Math.abs(b.m.diff + b.p.diff));
   for (const x of paare) buche(x.m, x.p, x.wort);
+  // 1b) „Regiestundensatz“ im Arbeitsblatt ist nur die allgemeine Bezeichnung, die Abrechnung nennt die Arbeit
+  //     (Februar 2025: 1,50 Std Regiestundensatz → „Schalter De+Wiedermontage …“ 1,50 Std). Zuordnung zu einer anderen
+  //     Stunden-Position mit genau derselben Stundenzahl, oder wenn es nur eine gibt (Tom, 09.10.2026).
+  for (const m of minus.filter((x) => REGIE_ALLGEMEIN.test(x.name) && x.einheit === "Std" && rest.get(x) > 0.005)) {
+    const po = plus.filter((p) => p.einheit === "Std" && rest.get(p) > 0.005);
+    const p = po.find((x) => Math.abs(rest.get(x) - rest.get(m)) < 0.005) ?? (po.length === 1 ? po[0] : null);
+    if (p) buche(m, p, "Regie");
+  }
   // 2) ohne Stichwort: je Einheit genau ein offenes Minus und ein offenes Plus
   for (const m of minus) {
     const mo = minus.filter((x) => gleich(x, m) && rest.get(x) > 0.005), po = plus.filter((x) => gleich(x, m) && rest.get(x) > 0.005);
@@ -401,6 +411,7 @@ export function umrechnenMitSatz(z, satz, anzahl, eintrag) {
 function erklaereUmbuchung(z) {
   const u = z.umbuchung, e = (x) => `${menge(x)} ${u.einheit}`.trim();
   let t = `${e(u.menge)} „${u.von}“ → „${u.nach}“: im selben Auftrag umgebucht, nicht gestrichen.`;
+  if (u.stichwort === "Regie") t += ` „${u.von}“ im Arbeitsblatt ist nur die allgemeine Bezeichnung, abgerechnet ist dieselbe Zeit mit dem Arbeitstext.`;
   if (!u.stichwort) t += " Die beiden Positionen haben kein gemeinsames Stichwort, es ist aber die einzige passende Kürzung und Erhöhung mit dieser Einheit. Bitte selbst ansehen.";
   if (z.euroDein == null) return t + " Ein Satz ist unbekannt, die €-Wirkung ist nicht berechenbar.";
   const teil = (mg, satz, anteil) => `${e(mg)} × ${euro(satz)}${anteil < 1 ? ` ÷ ${Math.round(1 / anteil)}` : ""}`;

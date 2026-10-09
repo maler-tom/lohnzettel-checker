@@ -1,13 +1,13 @@
 // Wertet die Seiten EINER PDF aus: Gehaltsseite + Arbeiter-Abrechnungen.
 // Wird von der App und vom Test-Werkzeug gleich benutzt.
-import { istGehaltsseite, leseGehaltsseite } from "./parser.js?v=0.20";
-import { pruefe, gesamtStatus } from "./pruefungen.js?v=0.20";
-import { istArbeiterSeite, leseArbeiterSeite, fasseAbrechnungenZusammen } from "./malerliste.js?v=0.20";
-import { pruefeMalerliste, auftragStatus } from "./pruefungen-malerliste.js?v=0.20";
-import { ergaenzePreisverlauf, preisSchluessel } from "./preise.js?v=0.20";
-import { pruefeGegenPreisliste } from "./preisliste.js?v=0.20";
-import { istArbeitsblatt, leseArbeitsblatt, fasseArbeitsblaetterZusammen, istDetailaufstellung, leseDetailaufstellung } from "./arbeitsblatt.js?v=0.20";
-import { bruttoCheck, positionsAbgleich, nettoWirkung, umrechnenMitSatz } from "./abgleich.js?v=0.20";
+import { istGehaltsseite, leseGehaltsseite } from "./parser.js?v=0.21";
+import { pruefe, gesamtStatus } from "./pruefungen.js?v=0.21";
+import { istArbeiterSeite, leseArbeiterSeite, fasseAbrechnungenZusammen } from "./malerliste.js?v=0.21";
+import { pruefeMalerliste, auftragStatus } from "./pruefungen-malerliste.js?v=0.21";
+import { ergaenzePreisverlauf, preisSchluessel } from "./preise.js?v=0.21";
+import { pruefeGegenPreisliste } from "./preisliste.js?v=0.21";
+import { istArbeitsblatt, leseArbeitsblatt, fasseArbeitsblaetterZusammen, istDetailaufstellung, leseDetailaufstellung } from "./arbeitsblatt.js?v=0.21";
+import { bruttoCheck, positionsAbgleich, nettoWirkung, umrechnenMitSatz } from "./abgleich.js?v=0.21";
 
 // seitenZeilen: Array von Zeilen je Seite (aus zeilenAusItems)
 export function werteAus(seitenZeilen) {

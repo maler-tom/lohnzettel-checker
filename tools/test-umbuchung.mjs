@@ -182,5 +182,16 @@ const umb = (ab) => ab.flatMap((a) => a.zeilen).filter((z) => z.umbuchung);
   erwarte("genau 1 €/m² = blau", zeile(ab, "Schimmelbehandlung").status === "plus");
 }
 
+// 20) „Regiestundensatz“ im Blatt (Februar 2025): 1,50 Std abgerechnet als „Schalter De+Wiedermontage …“, daneben noch eine andere neue Std-Position
+{
+  const ab = pruefe([blatt("20260022", [["Regiestundensatz", 1.5, "Std"], ["Abdecken", 1, "Std"]])],
+    [abrechnung("20260022", [["Abdecken", 1, 18.10, "Std"], ["Schalter De+Wiedermontage Leisten abdecken Wandbelag entfernen", 1.5, 18.10, "Std"], ["3 Dichtungen setzen inkl. Fahrzeit", 0.75, 18.10, "Std"]])]);
+  const u = umb(ab)[0];
+  erwarte("Regiestundensatz → Schalter grün", u?.umbuchung.von === "Regiestundensatz" && /^Schalter/.test(u.umbuchung.nach) && u.status === "ok", JSON.stringify(u?.umbuchung));
+  erwarte("Regiestundensatz nicht mehr rot", zeile(ab, "Regiestundensatz").ausgeglichen);
+  erwarte("Dichtungen bleibt blau", zeile(ab, "3 Dichtungen setzen inkl. Fahrzeit").status === "plus");
+  erwarte("Erklärung allgemeine Bezeichnung", /nur die allgemeine Bezeichnung/.test(u?.erklaerung), u?.erklaerung);
+}
+
 console.log(fehler ? `\n${fehler} Test(s) FALSCH` : "\nAlle Tests OK");
 process.exit(fehler ? 1 : 0);
