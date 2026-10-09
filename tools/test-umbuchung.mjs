@@ -151,5 +151,21 @@ const umb = (ab) => ab.flatMap((a) => a.zeilen).filter((z) => z.umbuchung);
   erwarte("x -> Raum bleibt orange", z.art === "umgerechnet" && z.status === "hinweis", `${z.art} ${z.status}`);
 }
 
+// 16) m² eingereicht, Std abgerechnet, Std SCHLECHTER als m² -> rot (Satz im Monat bekannt: 100 m² × 0,48 = 48,00 €, bezahlt 0,50 Std = 9,05 €)
+{
+  const ab = pruefe([blatt("20260017", [["Schimmelbehandlung", 100]]), blatt("20260018", [["Schimmelbehandlung", 10]])],
+    [abrechnung("20260017", [["Schimmelbehandlung", 0.5, 18.10, "Std"]]), abrechnung("20260018", [["Schimmelbehandlung", 10, 0.48]])]);
+  const z = ab.find((a) => a.auftrag === "20260017").zeilen[0];
+  erwarte("Std schlechter als m² = rot −38,95 €", z.status === "fehler" && z.euroDein === -38.95, `${z.status} ${z.euroDein}`);
+}
+
+// 17) dasselbe mit Satz aus dem Verlauf: rot
+{
+  const ab = pruefe([blatt("20260019", [["Schimmelbehandlung", 100]])], [abrechnung("20260019", [["Schimmelbehandlung", 0.5, 18.10, "Std"]])]);
+  const z = zeile(ab, "Schimmelbehandlung");
+  umrechnenMitSatz(z, 0.48, 1, ab[0]);
+  erwarte("Verlauf: Std schlechter = rot −38,95 €", z.status === "fehler" && z.euroDein === -38.95 && /zu wenig bezahlt/.test(z.erklaerung), `${z.status} ${z.euroDein}`);
+}
+
 console.log(fehler ? `\n${fehler} Test(s) FALSCH` : "\nAlle Tests OK");
 process.exit(fehler ? 1 : 0);
