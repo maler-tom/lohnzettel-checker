@@ -1,8 +1,8 @@
 // Stufe 2: Vergleich mit der eigenen Lohnpreisliste (PDF "Lohnpreisliste SUB").
 // Die Liste lädt jeder selbst hoch, sie bleibt nur im Browser. Hier im Code stehen
 // KEINE Preise, nur welche Bezeichnung auf der Abrechnung zu welcher Artikelnummer gehört.
-import { zahl, zeilenText } from "./parser.js?v=0.18";
-import { euro } from "./pruefungen.js?v=0.18";
+import { zahl, zeilenText } from "./parser.js?v=0.19";
+import { euro } from "./pruefungen.js?v=0.19";
 
 const ZAHL = /^-?\d{1,3}(?:\.\d{3})*,\d{2}$/;
 const EINHEIT = /^(m²|m2|lfm|Stk|x|RI|Rl|Std|Raum|m)$/i;

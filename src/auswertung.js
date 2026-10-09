@@ -1,13 +1,13 @@
 // Wertet die Seiten EINER PDF aus: Gehaltsseite + Arbeiter-Abrechnungen.
 // Wird von der App und vom Test-Werkzeug gleich benutzt.
-import { istGehaltsseite, leseGehaltsseite } from "./parser.js?v=0.18";
-import { pruefe, gesamtStatus } from "./pruefungen.js?v=0.18";
-import { istArbeiterSeite, leseArbeiterSeite, fasseAbrechnungenZusammen } from "./malerliste.js?v=0.18";
-import { pruefeMalerliste, auftragStatus } from "./pruefungen-malerliste.js?v=0.18";
-import { ergaenzePreisverlauf, preisSchluessel } from "./preise.js?v=0.18";
-import { pruefeGegenPreisliste } from "./preisliste.js?v=0.18";
-import { istArbeitsblatt, leseArbeitsblatt, fasseArbeitsblaetterZusammen, istDetailaufstellung, leseDetailaufstellung } from "./arbeitsblatt.js?v=0.18";
-import { bruttoCheck, positionsAbgleich, nettoWirkung, umrechnenMitSatz } from "./abgleich.js?v=0.18";
+import { istGehaltsseite, leseGehaltsseite } from "./parser.js?v=0.19";
+import { pruefe, gesamtStatus } from "./pruefungen.js?v=0.19";
+import { istArbeiterSeite, leseArbeiterSeite, fasseAbrechnungenZusammen } from "./malerliste.js?v=0.19";
+import { pruefeMalerliste, auftragStatus } from "./pruefungen-malerliste.js?v=0.19";
+import { ergaenzePreisverlauf, preisSchluessel } from "./preise.js?v=0.19";
+import { pruefeGegenPreisliste } from "./preisliste.js?v=0.19";
+import { istArbeitsblatt, leseArbeitsblatt, fasseArbeitsblaetterZusammen, istDetailaufstellung, leseDetailaufstellung } from "./arbeitsblatt.js?v=0.19";
+import { bruttoCheck, positionsAbgleich, nettoWirkung, umrechnenMitSatz } from "./abgleich.js?v=0.19";
 
 // seitenZeilen: Array von Zeilen je Seite (aus zeilenAusItems)
 export function werteAus(seitenZeilen) {
@@ -81,16 +81,16 @@ export function pruefePreisverlauf(monate, verlauf) {
   return neu;
 }
 
-// „Andere Einheit“ ohne Satz im Monat: üblichen Satz aus allen Monaten des Verlaufs nehmen (mindestens 2 Belege).
+// „Andere Einheit“ ohne Satz im Monat: üblichen Satz aus allen Monaten des Verlaufs nehmen (1 Beleg reicht, z. B. nur Februar 2026).
 // Beispiel Mai 2026: Schimmelbehandlung 5 m² eingereicht (sonst immer 0,48 €/m² = 2,40 €), 0,50 Std = 9,05 € bezahlt -> +6,65 €.
-const MIN_BELEGE_UMRECHNEN = 2;
+const MIN_BELEGE_UMRECHNEN = 1;
 function satzAusVerlauf(m, alle) {
   const ab = m.arbeitsblatt;
   if (!ab) return;
   let geaendert = false;
   for (const a of ab.abgleich)
     for (const z of a.zeilen) {
-      if (z.art !== "umgerechnet" || z.euroGesamt != null || z.status !== "hinweis" || !z.eingereicht) continue;
+      if (z.art !== "umgerechnet" || z.euroGesamt != null || z.status === "info" || !z.eingereicht) continue;
       const k = preisSchluessel({ name: z.name, einheit: z.einheit });
       const zaehl = new Map();
       for (const preise of Object.values(alle)) for (const s of preise[k] ?? []) zaehl.set(s, (zaehl.get(s) ?? 0) + 1);

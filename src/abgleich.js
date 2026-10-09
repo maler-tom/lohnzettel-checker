@@ -1,5 +1,5 @@
 // Brutto-Check (Akkord, Urlaub, Auslösen) und Positionsabgleich Arbeitsblatt ↔ Akkordabrechnung.
-import { euro } from "./pruefungen.js?v=0.18";
+import { euro } from "./pruefungen.js?v=0.19";
 
 const r2 = (x) => Math.round((x + Number.EPSILON) * 100) / 100;
 const RUNDUNG = 0.02; // bis 2 Cent = Rundung
@@ -244,7 +244,9 @@ export function positionsAbgleich(blaetter, maler, monat) {
       const unplausibel = !!(b && b.einheit === "Std" && tage && b.menge > 12 * tage * arbeiterBlatt);
       // Vormonat / läuft weiter: Abweichung nur als Info, nicht als Fehler
       const nurInfo = art !== "ok" && (vormonat || (laeuftWeiter && richtung < 0));
-      const status = art === "ok" ? "ok" : nurInfo ? "info" : unplausibel || (umgerechnet && euroGesamt == null) ? "hinweis" : richtung < 0 ? "fehler" : "plus";
+      // m² (Stk ...) eingereicht, als Regiestunden bezahlt, Satz pro m² unbekannt: Regie bringt mehr als pro m² = zu deinen Gunsten (Tom, 09.10.2026)
+      const alsRegie = umgerechnet && euroGesamt == null && a.einheit === "Std" && b.einheit !== "Std";
+      const status = art === "ok" ? "ok" : nurInfo ? "info" : alsRegie ? "plus" : unplausibel || (umgerechnet && euroGesamt == null) ? "hinweis" : richtung < 0 ? "fehler" : "plus";
       const zeile = {
         auftrag, name: (b ?? a).name.replace(/[\s,;:.]+$/, ""), einheit: (b ?? a).einheit, einheitAbger: a?.einheit ?? null,
         eingereicht, abgerechnet, diff, satz, euroGesamt, euroDein, art, status, unplausibel,
@@ -429,7 +431,9 @@ function erklaere(z, k) {
   else t = `${titel}: ${e(z.eingereicht)} eingereicht, ${e(z.abgerechnet, z.einheitAbger ?? z.einheit)} abgerechnet`;
   if (z.art !== "ok") {
     if (z.art === "umgerechnet" && z.euroGesamt == null)
-      t += ` (andere Einheit, der eingereichte Wert ist nicht in € umrechenbar). Bitte selbst ansehen.`;
+      t += z.status === "plus" && z.einheitAbger === "Std"
+        ? `. Als Regiestunden bezahlt statt pro ${z.einheit}: ${euro(r2(z.abgerechnet * z.satz))}. Den Satz pro ${z.einheit} kennt die App nicht (in den geladenen Monaten nicht pro ${z.einheit} abgerechnet), Regiestunden bringen aber mehr als pro ${z.einheit}, darum zu deinen Gunsten.`
+        : ` (andere Einheit, der eingereichte Wert ist nicht in € umrechenbar). Bitte selbst ansehen.`;
     else if (z.art === "umgerechnet") {
       const bezahlt = r2(z.abgerechnet * z.satz), waere = r2(z.eingereicht * z.satzBlatt);
       t += `. Eingereicht wären das ${e(z.eingereicht)} × ${euro(z.satzBlatt)} = ${euro(waere)}${z.satzQuelle ? ` (${z.satzQuelle})` : ""}, bezahlt sind ${euro(bezahlt)}`;

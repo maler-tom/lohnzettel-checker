@@ -2,7 +2,7 @@
 // - gleicheArbeitAndererPreis: dieselbe Arbeit im selben Monat zu verschiedenen Preisen
 // - ergaenzePreisverlauf: Preis weicht vom üblichen Preis früherer Monate ab
 //   (die früheren Preise merkt sich nur das eigene Gerät, siehe app.js)
-import { euro } from "./pruefungen.js?v=0.18";
+import { euro } from "./pruefungen.js?v=0.19";
 
 const r2 = (x) => Math.round((x + Number.EPSILON) * 100) / 100;
 const menge = (x) => x.toLocaleString("de-DE", { maximumFractionDigits: 2 });

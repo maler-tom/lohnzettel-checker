@@ -6,7 +6,7 @@
 //   Dieselbe Team-Seite kann mehrfach im PDF stehen (einmal je Arbeiter, Namen vertauscht).
 // - Hat ein Auftrag beides, steht auf der eigenen Seite eine Zeile "Anteil aus A+B" mit dem Team-Anteil.
 // - Zuschlagsspalten 50 % / 10 %: Betrag = Satz × (Menge + 0,5 × Menge50 + 0,1 × Menge10)
-import { zahl, zeilenText } from "./parser.js?v=0.18";
+import { zahl, zeilenText } from "./parser.js?v=0.19";
 
 const ZAHL = /^-?\d{1,3}(?:\.\d{3})*,\d{2}$/; // hier steht das Minus vorne ("-36,20 €")
 const MONATE = { JÄNNER: "01", JANUAR: "01", FEBRUAR: "02", MÄRZ: "03", APRIL: "04", MAI: "05", JUNI: "06", JULI: "07", AUGUST: "08", SEPTEMBER: "09", OKTOBER: "10", NOVEMBER: "11", DEZEMBER: "12" };

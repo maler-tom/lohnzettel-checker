@@ -138,10 +138,17 @@ const umb = (ab) => ab.flatMap((a) => a.zeilen).filter((z) => z.umbuchung);
 {
   const ab = pruefe([blatt("20260015", [["Schimmelbehandlung", 5]])], [abrechnung("20260015", [["Schimmelbehandlung", 0.5, 18.10, "Std"]])]);
   const z = zeile(ab, "Schimmelbehandlung");
-  erwarte("ohne Satz im Monat orange", z.art === "umgerechnet" && z.status === "hinweis" && z.euroGesamt == null, `${z.art} ${z.status}`);
+  erwarte("ohne Satz, als Regie bezahlt: blau", z.art === "umgerechnet" && z.status === "plus" && z.euroGesamt == null && /Regiestunden bringen aber mehr/.test(z.erklaerung), `${z.art} ${z.status} ${z.erklaerung}`);
   umrechnenMitSatz(z, 0.48, 12, ab[0]);
   erwarte("mit Satz aus Verlauf blau +6,65 €", z.status === "plus" && z.euroDein === 6.65, `${z.status} ${z.euroDein}`);
   erwarte("Erklärung mit Rechnung", /5,00 m² × 0,48 € = 2,40 €.*bezahlt sind 9,05 €.*zu deinen Gunsten/.test(z.erklaerung), z.erklaerung);
+}
+
+// 15) Andere Einheit ohne Satz, aber NICHT als Regie bezahlt (m² -> Raum): bleibt orange „Bitte selbst ansehen“
+{
+  const ab = pruefe([blatt("20260016", [["Spachteln - Löcher", 3, "x"]])], [abrechnung("20260016", [["Spachteln - Löcher", 3, 4.20, "Raum"]])]);
+  const z = zeile(ab, "Spachteln - Löcher");
+  erwarte("x -> Raum bleibt orange", z.art === "umgerechnet" && z.status === "hinweis", `${z.art} ${z.status}`);
 }
 
 console.log(fehler ? `\n${fehler} Test(s) FALSCH` : "\nAlle Tests OK");
