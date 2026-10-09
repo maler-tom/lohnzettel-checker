@@ -1,5 +1,5 @@
 // Brutto-Check (Akkord, Urlaub, Auslösen) und Positionsabgleich Arbeitsblatt ↔ Akkordabrechnung.
-import { euro } from "./pruefungen.js?v=0.19";
+import { euro } from "./pruefungen.js?v=0.20";
 
 const r2 = (x) => Math.round((x + Number.EPSILON) * 100) / 100;
 const RUNDUNG = 0.02; // bis 2 Cent = Rundung
@@ -244,8 +244,10 @@ export function positionsAbgleich(blaetter, maler, monat) {
       const unplausibel = !!(b && b.einheit === "Std" && tage && b.menge > 12 * tage * arbeiterBlatt);
       // Vormonat / läuft weiter: Abweichung nur als Info, nicht als Fehler
       const nurInfo = art !== "ok" && (vormonat || (laeuftWeiter && richtung < 0));
-      // m² (Stk ...) eingereicht, als Regiestunden bezahlt, Satz pro m² unbekannt: Regie bringt mehr als pro m² = zu deinen Gunsten (Tom, 09.10.2026)
-      const alsRegie = umgerechnet && euroGesamt == null && a.einheit === "Std" && b.einheit !== "Std";
+      // m² (Stk ...) eingereicht, als Regiestunden bezahlt, Satz pro m² unbekannt: Regie bringt mehr als pro m² = zu deinen Gunsten (Tom, 09.10.2026).
+      // Absicherung: nur wenn mindestens 1 € je eingereichter Einheit bezahlt ist (mehr als jeder m²-Satz für solche Arbeiten),
+      // sonst orange (z. B. 200 m² mit nur 1 Std bezahlt = 0,09 €/m²).
+      const alsRegie = umgerechnet && euroGesamt == null && a.einheit === "Std" && b.einheit !== "Std" && a.betrag >= MIN_EURO_JE_EINHEIT * eingereicht;
       const status = art === "ok" ? "ok" : nurInfo ? "info" : alsRegie ? "plus" : unplausibel || (umgerechnet && euroGesamt == null) ? "hinweis" : richtung < 0 ? "fehler" : "plus";
       const zeile = {
         auftrag, name: (b ?? a).name.replace(/[\s,;:.]+$/, ""), einheit: (b ?? a).einheit, einheitAbger: a?.einheit ?? null,
@@ -294,6 +296,8 @@ function stichwort(a, b) {
 // einmal. Beispiel: 169,57 m² Leimfarbe abscheren + 60,47 m² Rauhfaseranstrich entfernen eingereicht, abgerechnet
 // 109,10 m² Leimfarbe + 60,47 m² Raufaser -> die Kürzung ist genau die Raufaser-Fläche = kein Fehler (Tom, 09.10.2026).
 const ENTFERNEN = /abscher|entfern|abwasch|abbeiz|abkratz|abl[öo]s|abschleif/i;
+// Als Regie bezahlt ohne bekannten m²-Satz: erst ab so viel € je eingereichter Einheit sicher „zu deinen Gunsten“
+const MIN_EURO_JE_EINHEIT = 1;
 
 function gegenrechnen(zeilen, k) {
   // Nur echte Abweichungen: keine Infos (Vormonat, läuft weiter), Tippfehler, anderen Einheiten oder Abzugszeilen (Menge < 0)
@@ -432,8 +436,10 @@ function erklaere(z, k) {
   if (z.art !== "ok") {
     if (z.art === "umgerechnet" && z.euroGesamt == null)
       t += z.status === "plus" && z.einheitAbger === "Std"
-        ? `. Als Regiestunden bezahlt statt pro ${z.einheit}: ${euro(r2(z.abgerechnet * z.satz))}. Den Satz pro ${z.einheit} kennt die App nicht (in den geladenen Monaten nicht pro ${z.einheit} abgerechnet), Regiestunden bringen aber mehr als pro ${z.einheit}, darum zu deinen Gunsten.`
-        : ` (andere Einheit, der eingereichte Wert ist nicht in € umrechenbar). Bitte selbst ansehen.`;
+        ? `. Als Regiestunden bezahlt statt pro ${z.einheit}: ${euro(r2(z.abgerechnet * z.satz))}, das sind ${euro(r2(z.abgerechnet * z.satz / z.eingereicht))} je ${z.einheit}. Den Satz pro ${z.einheit} kennt die App nicht (in den geladenen Monaten nicht pro ${z.einheit} abgerechnet), Regiestunden bringen aber mehr als pro ${z.einheit}, darum zu deinen Gunsten.`
+        : z.einheitAbger === "Std"
+          ? `. Als Regiestunden bezahlt statt pro ${z.einheit}: ${euro(r2(z.abgerechnet * z.satz))}, das sind nur ${euro(r2(z.abgerechnet * z.satz / z.eingereicht))} je ${z.einheit}. Den Satz pro ${z.einheit} kennt die App nicht (in den geladenen Monaten nicht pro ${z.einheit} abgerechnet). Unter 1 € je ${z.einheit} kann das weniger sein als pro ${z.einheit}. Bitte selbst ansehen.`
+          : ` (andere Einheit, der eingereichte Wert ist nicht in € umrechenbar). Bitte selbst ansehen.`;
     else if (z.art === "umgerechnet") {
       const bezahlt = r2(z.abgerechnet * z.satz), waere = r2(z.eingereicht * z.satzBlatt);
       t += `. Eingereicht wären das ${e(z.eingereicht)} × ${euro(z.satzBlatt)} = ${euro(waere)}${z.satzQuelle ? ` (${z.satzQuelle})` : ""}, bezahlt sind ${euro(bezahlt)}`;

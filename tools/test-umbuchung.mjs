@@ -167,5 +167,20 @@ const umb = (ab) => ab.flatMap((a) => a.zeilen).filter((z) => z.umbuchung);
   erwarte("Verlauf: Std schlechter = rot −38,95 €", z.status === "fehler" && z.euroDein === -38.95 && /zu wenig bezahlt/.test(z.erklaerung), `${z.status} ${z.euroDein}`);
 }
 
+// 18) Absicherung: 200 m² eingereicht, nur 1 Std bezahlt (0,09 €/m²), kein m²-Satz bekannt -> orange statt blau
+{
+  const ab = pruefe([blatt("20260020", [["Schimmelbehandlung", 200]])], [abrechnung("20260020", [["Schimmelbehandlung", 1, 18.10, "Std"]])]);
+  const z = zeile(ab, "Schimmelbehandlung");
+  erwarte("große Fläche, wenig Std, ohne Satz = orange", z.status === "hinweis" && /nur 0,09 € je m²/.test(z.erklaerung), `${z.status} ${z.erklaerung}`);
+  umrechnenMitSatz(z, 0.48, 1, ab[0]);
+  erwarte("mit Satz aus Verlauf = rot −77,90 €", z.status === "fehler" && z.euroDein === -77.9, `${z.status} ${z.euroDein}`);
+}
+
+// 19) Grenze genau 1 € je m²: 9,05 m² eingereicht, 0,50 Std = 9,05 € -> noch blau
+{
+  const ab = pruefe([blatt("20260021", [["Schimmelbehandlung", 9.05]])], [abrechnung("20260021", [["Schimmelbehandlung", 0.5, 18.10, "Std"]])]);
+  erwarte("genau 1 €/m² = blau", zeile(ab, "Schimmelbehandlung").status === "plus");
+}
+
 console.log(fehler ? `\n${fehler} Test(s) FALSCH` : "\nAlle Tests OK");
 process.exit(fehler ? 1 : 0);
