@@ -109,5 +109,30 @@ const umb = (ab) => ab.flatMap((a) => a.zeilen).filter((z) => z.umbuchung);
   erwarte("Streichen bleibt rot", zeile(ab, "Streichen - 2x weiß").status === "fehler");
 }
 
+// 11) Überscheren um genau die Abscher-Fläche gekürzt (Februar 2026): grün
+{
+  const ab = pruefe([blatt("20260012", [["Leimfarbe abscheren", 200], ["Überscheren und abkehren", 200]])],
+    [abrechnung("20260012", [["Leimfarbe abscheren", 200, 0.60]])]);
+  const u = zeile(ab, "Überscheren und abkehren");
+  erwarte("Überscheren gestrichen = Abscher-Fläche grün", u.status === "ok" && u.art === "flaeche", `${u.status} ${u.art}`);
+  erwarte("Erklärung Überscheren", /nicht extra bezahlt/.test(u.erklaerung) && !/steht dir zu/.test(u.erklaerung), u.erklaerung);
+  erwarte("Netto ±0", nettoWirkung(ab) === 0, nettoWirkung(ab));
+}
+
+// 12) Überscheren gekürzt um zwei Abscher-Positionen zusammen (Juli 2026: 27,75 + 14,26 = 42,01)
+{
+  const ab = pruefe([blatt("20260013", [["Tapeten entfernen - inkl. Leimfarbe abscheren", 27.75], ["Leimfarbe abscheren", 14.26], ["Überscheren und abkehren", 188.23]])],
+    [abrechnung("20260013", [["Tapeten entfernen - inkl. Leimfarbe abscheren", 27.75, 1.20], ["Leimfarbe abscheren", 14.26, 0.60], ["Überscheren und abkehren", 146.22, 0.12]])]);
+  erwarte("Summe beider Abscher-Positionen grün", zeile(ab, "Überscheren und abkehren").status === "ok");
+}
+
+// 13) Überscheren gekürzt, aber nicht um die Abscher-Fläche: bleibt rot mit „steht dir zu“
+{
+  const ab = pruefe([blatt("20260014", [["Leimfarbe abscheren", 60], ["Überscheren und abkehren", 200]])],
+    [abrechnung("20260014", [["Leimfarbe abscheren", 60, 0.60], ["Überscheren und abkehren", 150, 0.12]])]);
+  const u = zeile(ab, "Überscheren und abkehren");
+  erwarte("Überscheren −50 bleibt rot", u.status === "fehler" && /steht dir zu/.test(u.erklaerung), u.status);
+}
+
 console.log(fehler ? `\n${fehler} Test(s) FALSCH` : "\nAlle Tests OK");
 process.exit(fehler ? 1 : 0);

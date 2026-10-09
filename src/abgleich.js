@@ -1,5 +1,5 @@
 // Brutto-Check (Akkord, Urlaub, Auslösen) und Positionsabgleich Arbeitsblatt ↔ Akkordabrechnung.
-import { euro } from "./pruefungen.js?v=0.16";
+import { euro } from "./pruefungen.js?v=0.17";
 
 const r2 = (x) => Math.round((x + Number.EPSILON) * 100) / 100;
 const RUNDUNG = 0.02; // bis 2 Cent = Rundung
@@ -327,6 +327,18 @@ function gegenrechnen(zeilen, k) {
     rest.set(m, 0);
     (m.flaeche ??= []).push({ menge: r, mit: andere.name });
   }
+  // 4) Überscheren: Wo abgeschert wird, zahlt das Lohnbüro Überscheren nicht extra (Tom, 09.10.2026; an allen Zetteln
+  //    2024–2026 bestätigt). Kürzung GENAU so groß wie eine Abscher-Position oder alle zusammen (abgerechnete Menge) = grün.
+  for (const m of minus.filter((x) => /Überscher/i.test(x.name) && rest.get(x) > 0.005)) {
+    const r = rest.get(m);
+    const abscher = zeilen.filter((x) => x !== m && /abscher/i.test(x.name) && x.abgerechnet > 0 && gleich(x, m));
+    const summe = r2(abscher.reduce((s, x) => s + x.abgerechnet, 0));
+    const eine = abscher.find((x) => Math.abs(x.abgerechnet - r) <= 0.011);
+    const liste = eine ? [eine] : abscher.length > 1 && Math.abs(summe - r) <= 0.011 ? abscher : null;
+    if (!liste) continue;
+    rest.set(m, 0);
+    (m.flaeche ??= []).push({ menge: r, mit: liste.map((x) => x.name).join("“ + „"), ueberscheren: true });
+  }
 
   const satzCent = (z) => (z.satz != null ? r2(z.satz) : null); // gedruckter Satz, ohne Rundungsreste aus Betrag ÷ Menge
   const neueZeilen = [];
@@ -389,7 +401,9 @@ function erklaere(z, k) {
     t = `${titel}: ${z.eingereicht ? `${e(z.eingereicht)} eingereicht` : "nicht im Arbeitsblatt"}, ${z.abgerechnet ? `${e(z.abgerechnet, z.einheitAbger ?? z.einheit)} abgerechnet` : "nicht abgerechnet"}.`;
     if (z.umgebucht) t += ` Davon ${z.umgebucht.map((x) => `${e(x.menge)} ${x.richtung} „${x.mit}“`).join(", ")} umgebucht (siehe Umbuchung).`;
     for (const f of z.flaeche ?? [])
-      t += ` ${z.umgebucht ? "Weitere" : "Die fehlenden"} ${e(f.menge)} sind genau die Fläche von „${f.mit}“, die du im selben Auftrag eigens eingereicht hast. Dieselbe Fläche wird nur einmal abgerechnet, darum kein Fehler.`;
+      t += f.ueberscheren
+        ? ` ${z.umgebucht ? "Weitere" : "Die fehlenden"} ${e(f.menge)} sind genau die abgescherte Fläche („${f.mit}“). Wo abgeschert wird, wird Überscheren nicht extra bezahlt, darum kein Fehler.`
+        : ` ${z.umgebucht ? "Weitere" : "Die fehlenden"} ${e(f.menge)} sind genau die Fläche von „${f.mit}“, die du im selben Auftrag eigens eingereicht hast. Dieselbe Fläche wird nur einmal abgerechnet, darum kein Fehler.`;
     if (z.ausgeglichen) return z.umgebucht ? t + " Damit ist die Menge ausgeglichen." : t;
     t += ` Es bleiben ${vzMenge(z.diff)} ${z.einheit} ohne Ausgleich`;
     t += z.euroGesamt == null ? ", Satz unbekannt, € nicht berechenbar." : z.anteil < 1 ? `: ${vorzeichenEuro(z.euroGesamt)} für das Team, dein Anteil (÷ ${Math.round(1 / z.anteil)}) ${vorzeichenEuro(z.euroDein)}.` : `: ${vorzeichenEuro(z.euroDein)} (${vzMenge(z.diff)} ${z.einheit} × ${euro(z.satz)}).`;

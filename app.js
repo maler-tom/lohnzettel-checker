@@ -1,10 +1,10 @@
 import * as pdfjs from "./vendor/pdfjs/pdf.min.mjs";
-import { zeilenAusItems } from "./src/parser.js?v=0.16";
-import { euro } from "./src/pruefungen.js?v=0.16";
-import { werteAus, pruefePreisverlauf, pruefePreisliste } from "./src/auswertung.js?v=0.16";
-import { istPreisliste, lesePreisliste } from "./src/preisliste.js?v=0.16";
-import { menge, vorzeichenEuro } from "./src/abgleich.js?v=0.16";
-import { protokollAusMonat, leseExport, exportDaten, ladeProtokolle, ladeProtokoll, speichereProtokoll, loescheProtokoll, loescheAlleProtokolle } from "./src/protokoll.js?v=0.16";
+import { zeilenAusItems } from "./src/parser.js?v=0.17";
+import { euro } from "./src/pruefungen.js?v=0.17";
+import { werteAus, pruefePreisverlauf, pruefePreisliste } from "./src/auswertung.js?v=0.17";
+import { istPreisliste, lesePreisliste } from "./src/preisliste.js?v=0.17";
+import { menge, vorzeichenEuro } from "./src/abgleich.js?v=0.17";
+import { protokollAusMonat, leseExport, exportDaten, ladeProtokolle, ladeProtokoll, speichereProtokoll, loescheProtokoll, loescheAlleProtokolle } from "./src/protokoll.js?v=0.17";
 
 pdfjs.GlobalWorkerOptions.workerSrc = "./vendor/pdfjs/pdf.worker.min.mjs";
 
