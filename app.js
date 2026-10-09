@@ -1,10 +1,10 @@
 import * as pdfjs from "./vendor/pdfjs/pdf.min.mjs";
-import { zeilenAusItems } from "./src/parser.js?v=0.21";
-import { euro } from "./src/pruefungen.js?v=0.21";
-import { werteAus, pruefePreisverlauf, pruefePreisliste } from "./src/auswertung.js?v=0.21";
-import { istPreisliste, lesePreisliste } from "./src/preisliste.js?v=0.21";
-import { menge, vorzeichenEuro } from "./src/abgleich.js?v=0.21";
-import { protokollAusMonat, leseExport, exportDaten, ladeProtokolle, ladeProtokoll, speichereProtokoll, loescheProtokoll, loescheAlleProtokolle } from "./src/protokoll.js?v=0.21";
+import { zeilenAusItems } from "./src/parser.js?v=0.22";
+import { euro } from "./src/pruefungen.js?v=0.22";
+import { werteAus, pruefePreisverlauf, pruefePreisliste } from "./src/auswertung.js?v=0.22";
+import { istPreisliste, lesePreisliste } from "./src/preisliste.js?v=0.22";
+import { menge, vorzeichenEuro } from "./src/abgleich.js?v=0.22";
+import { protokollAusMonat, leseExport, exportDaten, ladeProtokolle, ladeProtokoll, speichereProtokoll, loescheProtokoll, loescheAlleProtokolle } from "./src/protokoll.js?v=0.22";
 
 pdfjs.GlobalWorkerOptions.workerSrc = "./vendor/pdfjs/pdf.worker.min.mjs";
 
@@ -455,6 +455,7 @@ function abgleichAuftrag(a) {
     abw.length ? `${abw.length} ${abw.length === 1 ? "Abweichung" : "Abweichungen"}` : a.zeilen.length ? "alles wie eingereicht" : null].filter(Boolean).join(" · ");
   sum.append(sym, el("strong", null, `Auftrag ${a.auftrag}`));
   if (a.ort) sum.append(el("span", "baustelle", `📍 ${a.ort}`)); // Straße + Ort vom Arbeitsblatt, nur Anzeige
+  if (a.kollegen?.length) sum.append(el("span", "baustelle", `👥 mit ${a.kollegen.join(", ")}`)); // Team-Kollegen, nur Anzeige
   sum.append(el("span", "klein", zusatz));
   d.append(sum);
 
@@ -497,7 +498,7 @@ function abgleichAuftrag(a) {
   }
   if (a.aufteilung) {
     const au = a.aufteilung;
-    d.append(el("p", `aufteilung ${au.ok ? "ok" : "fehler"}`, `${au.ok ? "✓" : "✕"} Aufteilung: ${euro(au.summe)}${au.tp ? ` (Tagespauschale ${euro(au.tp)} ungeteilt)` : ""} ÷ ${au.anzahl} Arbeiter = ${euro(au.soll)}${au.ok ? "" : `, abgerechnet sind ${euro(au.anteil)}`} · laut Arbeitsblatt ${a.arbeiterBlatt} Arbeiter`));
+    d.append(el("p", `aufteilung ${au.ok ? "ok" : "fehler"}`, `${au.ok ? "✓" : "✕"} Aufteilung: ${euro(au.summe)}${au.tp ? ` (Tagespauschale ${euro(au.tp)} ungeteilt)` : ""} ÷ ${au.anzahl} Arbeiter${a.kollegen?.length ? ` (du + ${a.kollegen.join(" + ")})` : ""} = ${euro(au.soll)}${au.ok ? "" : `, abgerechnet sind ${euro(au.anteil)}`} · laut Arbeitsblatt ${a.arbeiterBlatt} Arbeiter`));
   }
   for (const h of a.hinweise) d.append(el("p", `abgleichhinweis ${h.status}`, h.text));
   return d;

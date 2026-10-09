@@ -1,8 +1,8 @@
 // Prüfungen für die Arbeiter-Abrechnungen (Malerliste) und der Abgleich mit dem Monatslohn.
 // Regeln abgeleitet aus 33 echten Lohnzetteln (Jän 2024 – Sep 2026).
-import { auftraegeAusAbrechnungen, betragFuerAuftrag } from "./malerliste.js?v=0.21";
-import { euro } from "./pruefungen.js?v=0.21";
-import { gleicheArbeitAndererPreis } from "./preise.js?v=0.21";
+import { auftraegeAusAbrechnungen, betragFuerAuftrag } from "./malerliste.js?v=0.22";
+import { euro } from "./pruefungen.js?v=0.22";
+import { gleicheArbeitAndererPreis } from "./preise.js?v=0.22";
 
 // Tagespauschale je Arbeiter (Maler und Bodenleger) und Stunde. Unabhängig vom Regiesatz (z. B. 18,10 €).
 // Gilt ab Juli 2026 ("laut Besprechung"). Ältere Zettel hatten andere Sätze (Feb 2024: 18,50 €).
@@ -96,7 +96,10 @@ function pruefeAbrechnung(a, alle, basis, ich) {
 export function pruefeMalerliste(abrechnungen, gehalt) {
   const auftraege = auftraegeAusAbrechnungen(abrechnungen);
   const basis = regiesatz(abrechnungen);
-  const ich = abrechnungen.find((a) => !a.team)?.name ?? "";
+  // Eigener Name: aus einer eigenen Abrechnung, sonst der Name, der in allen Team-Abrechnungen vorkommt
+  const teamNamen = abrechnungen.filter((a) => a.team).map((a) => a.name.split("+").map((s) => s.trim()));
+  const ich = abrechnungen.find((a) => !a.team)?.name
+    ?? (teamNamen.length > 1 ? teamNamen[0].find((n) => teamNamen.every((l) => l.includes(n))) : null) ?? "";
   const tpSatz = abrechnungen.flatMap((a) => a.positionen).find((x) => x.tagespauschale)?.satz ?? null;
 
   for (const auf of auftraege) {
@@ -109,7 +112,10 @@ export function pruefeMalerliste(abrechnungen, gehalt) {
       if (!erfasst)
         auf.pruefungen.push({ status: "hinweis", titel: "Team-Anteil fehlt auf deiner Abrechnung", text: `Der Team-Anteil mit ${mitWem(t, ich)} (${euro(t.anteil)}) steht nicht auf deiner eigenen Abrechnung für diesen Auftrag.` });
     }
-    auf.art = auf.eigene.length ? (auf.teams.length ? "eigen + Team" : "eigen") : `Team mit ${auf.teams.map((t) => mitWem(t, ich)).join(" / ")}`;
+    const mit = auf.teams.map((t) => mitWem(t, ich) || "Kollegen").join(" / ");
+    auf.art = auf.eigene.length ? (auf.teams.length ? `eigen + Team mit ${mit}` : "eigen") : `Team mit ${mit}`;
+    // Kollegen im Team (nur Anzeige, kommt nicht ins Monatsprotokoll)
+    auf.kollegen = [...new Set(auf.teams.flatMap((t) => mitWem(t, ich).split(", ")).filter(Boolean))];
     auf.gewerk = auf.abrechnungen[0].gewerk;
   }
   gleicheArbeitAndererPreis(auftraege);

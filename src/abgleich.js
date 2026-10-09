@@ -1,5 +1,5 @@
 // Brutto-Check (Akkord, Urlaub, Auslösen) und Positionsabgleich Arbeitsblatt ↔ Akkordabrechnung.
-import { euro } from "./pruefungen.js?v=0.21";
+import { euro } from "./pruefungen.js?v=0.22";
 
 const r2 = (x) => Math.round((x + Number.EPSILON) * 100) / 100;
 const RUNDUNG = 0.02; // bis 2 Cent = Rundung
@@ -163,7 +163,8 @@ export function positionsAbgleich(blaetter, maler, monat) {
     const zeitraum = daten.length ? (daten[0] === daten.at(-1) ? datumKurz(daten[0]) : `${datumKurz(daten[0])} – ${datumKurz(daten.at(-1))}`) : "";
 
     const ort = liste.find((b) => b.ort)?.ort ?? ""; // nur Anzeige, nicht im Protokoll
-    const eintrag = { auftrag, ort, zeitraum, vormonat, laeuftWeiter, teamArbeiter: team?.anzahlArbeiter ?? null, arbeiterBlatt, zeilen: [], hinweise: [] };
+    const kollegen = auf?.kollegen ?? []; // Team-Kollegen aus der Abrechnung, nur Anzeige, nicht im Protokoll
+    const eintrag = { auftrag, ort, kollegen, zeitraum, vormonat, laeuftWeiter, teamArbeiter: team?.anzahlArbeiter ?? null, arbeiterBlatt, zeilen: [], hinweise: [] };
     ergebnis.push(eintrag);
     if (!auf) {
       eintrag.hinweise.push({ status: vormonat ? "info" : "hinweis", text: vormonat
