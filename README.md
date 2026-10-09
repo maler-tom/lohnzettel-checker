@@ -16,7 +16,7 @@ Rechnet einen Lohnzettel (PDF, passwortgeschützt) im Browser nach: Bezugszeilen
 | `src/preise.js` | Preis-Plausibilität ohne Preisliste: gleiche Arbeit zu verschiedenen Preisen, Preis weicht vom üblichen Preis früherer Monate ab |
 | `src/preisliste.js` | liest eine hochgeladene „Lohnpreisliste SUB“ (ArtNr, Einheit, Preis) und vergleicht jede Akkordposition damit. Enthält nur die Zuordnung Bezeichnung → ArtNr, **keine Preise** |
 | `src/arbeitsblatt.js` | liest die Arbeitsblätter (eingereichte Positionen, „+“ = nachgetragen, Zeitraum, zusätzliche Arbeiter, Fortsetzungsseiten) und die „Personalabrechnung Detailaufstellung“ (Urlaub, Krankenstand, Auslösen) |
-| `src/abgleich.js` | Brutto-Check (Akkord = 135, Urlaub = 380/38x, Auslösen = 451), Positionsabgleich Arbeitsblatt ↔ Akkordabrechnung, Umbuchungen, Netto-Wirkung |
+| `src/abgleich.js` | Brutto-Check (Akkord = 135, Urlaub = 380/38x, Auslösen = 451), Positionsabgleich Arbeitsblatt ↔ Akkordabrechnung, Umbuchung im selben Auftrag, Netto-Wirkung |
 | `src/protokoll.js` | Monatsprotokoll (nur erlaubte Felder) und IndexedDB-Speicher, Export/Import |
 | `src/auswertung.js` | fügt alles für eine PDF zusammen (von App und Test gleich benutzt) |
 | `vendor/pdfjs/` | pdf.js 4.10.38 (Apache 2.0), lokal eingebunden |
@@ -46,7 +46,7 @@ Mit Preisliste: zusätzlich `PREISLISTE="<Pfad zur Preisliste.pdf>"` setzen. `FE
 
 Ausgabe: nur Monat und Prüfergebnis, keine persönlichen Daten.
 
-Brutto-Check und Positionsabgleich: `LOHN_PW=<passwort> node tools/test-arbeitsblatt.mjs "<PDF oder Ordner>"`. Am echten Zettel geprüft: Akkord-Summe gegen Monatslohn (1 Cent Rundung = grün), gekürzte Regiestunde (−0,50 Std = −9,05 €) und gleich große Erhöhung in einem anderen Auftrag als Umbuchung (Netto ±0,00 €), Team-Auftrag ÷ 2 Arbeiter.
+Brutto-Check und Positionsabgleich: `LOHN_PW=<passwort> node tools/test-arbeitsblatt.mjs "<PDF oder Ordner>"`. Am echten Zettel geprüft: Akkord-Summe gegen Monatslohn (1 Cent Rundung = grün), gekürzte Regiestunde (−0,50 Std = −9,05 €), Umbuchung im selben Auftrag (Juli 2026), Team-Auftrag ÷ 2 Arbeiter. Der August-Zettel muss nach Änderungen gleich bleiben.
 
 ## Wenn sich Sätze ändern
 
@@ -65,11 +65,12 @@ Neues Jahr mit anderen SV-Sätzen → in `src/pruefungen.js` bei `SAETZE` einen 
 
 - **Brutto-Check** unter der Brutto-Anzeige: Summe der Akkordabrechnungen = Lohnart 135; Urlaubstage der Detailaufstellung = Menge 380 (+ 381–389, z. B. Übersiedlungstag); Auslösen-Stunden = die 451-Zeile mit Satz „Prozent × Regiesatz“ (35 % von 18,10 € = 6,34 €). Bis 0,02 € = Rundung (grün). Farben überall nach Wirkung für dich: rot = zu deinem Nachteil, blau = zu deinen Gunsten, orange = unklar/selbst ansehen. Der Mail-Knopf erscheint nur bei Rotem oder bei „andere Einheit“ (falsch gebucht) und enthält nur diese Punkte, nie Blaues. Krankenstand wird nicht verglichen (410 mal in Tagen, mal in Stunden).
 - **Positionsabgleich** je Auftrag: gleiche Tätigkeit (Text ohne Satzzeichen, Klammerzusätze und Mengenangaben) + Einheit, mehrere Zeilen (z. B. je Raum) zusammengezählt. Danach lockerer: ähnlicher Text, andere Einheit („umgerechnet“, z. B. Wasserflecken m² → Std), und bleibt je Seite genau eine Position übrig, gilt sie als umbenannt. Ergebnis: gestrichen, gekürzt (rot), erhöht, nicht im Blatt (orange), mit Differenz in Menge und € (bei Team-Abrechnung dein Anteil).
+- **Umbuchung im selben Auftrag:** Danach werden je Auftrag die gekürzten/gestrichenen (Minus) und erhöhten/neuen Positionen (Plus) gegengerechnet: gleiche Einheit, zuerst mit gemeinsamem Stichwort (z. B. 100 m² „Leimfarbe abscheren“ → „Raufaserfarbe abscheren“). Ohne Stichwort nur, wenn es in der Einheit genau eine Kürzung und eine Erhöhung gibt (dann immer orange). Anzeige als eigene Zeile „umgebucht“ mit Menge und €-Differenz (Menge × jeweiliger Satz, bei Team dein Anteil): grün = Menge und € gleichen sich aus, orange = Menge gleich, aber anderer Preis (kommt bei weniger € auch in die Mail). Teilausgleich: der Rest bleibt rot. **Nie zwischen verschiedenen Aufträgen.** Test ohne echte Zettel: `node tools/test-umbuchung.mjs`.
 - „Wenn notwendig Nikotinfarbe streichen!“ ist nur ein Farbhinweis zur Fläche von „Streichen - 2x weiß“ (Menge immer m², auch wenn „Std“ dabeisteht, Preis wie 2x weiß) und wird nicht als eigene Position verglichen. Steht Nikotinfarbe doch eigens in der Abrechnung, muss der Preis wie bei 2x weiß sein.
 - Fahrtpauschale und Tagespauschale werden nicht verglichen, „- Anteil Kollege“-Zeilen auch nicht. Stehen dieselben Positionen auf eigener und Team-Abrechnung, zählen sie einmal.
 - Arbeitsblatt mit Zeitraum im Vormonat: nur Info. Läuft der Zeitraum über den Monat hinaus, sind Kürzungen nur Info (Rest kommt vielleicht nächsten Monat). Mehr als 12 Std je Arbeiter und Tag = vermutlich Tippfehler im Blatt, zählt nicht zur Netto-Wirkung.
 - Team-Aufträge: Aufteilung (Summe − Tagespauschale) ÷ Anzahl Arbeiter + Tagespauschale wird nachgerechnet und die Arbeiterzahl mit dem Arbeitsblatt (Arbeiter + Zusätzliche Arbeiter) verglichen.
-- **Umbuchung:** Kürzung und Erhöhung mit gleicher Stundenzahl werden als mögliche Umbuchung gruppiert, mit Netto-Wirkung. Warnung, wenn Stunden in einen Teamauftrag (nur Anteil) oder zu einem anderen Satz verschoben wurden.
+- Ab 0.15 gibt es **keine** „Mögliche Umbuchung“ zwischen verschiedenen Aufträgen mehr. Was im Auftrag nicht ausgeglichen wird, bleibt rot. Alte gespeicherte Monatsprotokolle zeigen ihre Umbuchungen weiter an.
 - Jedes rote/orange Feld zeigt beim Antippen die Erklärung, z. B. „Wand.- und Bodenfliesen abdecken: 2,00 Std eingereicht, 1,50 Std abgerechnet, −9,05 €“.
 
 ## Preisprüfung

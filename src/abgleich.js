@@ -1,5 +1,5 @@
 // Brutto-Check (Akkord, Urlaub, Auslösen) und Positionsabgleich Arbeitsblatt ↔ Akkordabrechnung.
-import { euro } from "./pruefungen.js?v=0.14";
+import { euro } from "./pruefungen.js?v=0.15";
 
 const r2 = (x) => Math.round((x + Number.EPSILON) * 100) / 100;
 const RUNDUNG = 0.02; // bis 2 Cent = Rundung
@@ -253,6 +253,7 @@ export function positionsAbgleich(blaetter, maler, monat) {
       zeile.erklaerung = erklaere(zeile, { vormonat, laeuftWeiter, zeitraum, teamArbeiter: team?.anzahlArbeiter });
       eintrag.zeilen.push(zeile);
     }
+    gegenrechnen(eintrag.zeilen, { vormonat, laeuftWeiter, zeitraum });
 
     // Aufteilung nachrechnen
     if (team) {
@@ -270,10 +271,116 @@ export function positionsAbgleich(blaetter, maler, monat) {
 
 const datumKurz = (iso) => iso.split("-").reverse().join(".");
 
+// ---------- 3. Umbuchung im selben Auftrag ----------
+// Oft streicht das Lohnbüro nichts, sondern bucht die Menge auf eine andere Position desselben Auftrags um
+// (z. B. 100 m² „Leimfarbe abscheren“ → „Raufaserfarbe abscheren“). Gekürzte/gestrichene (Minus) und erhöhte/neue
+// Positionen (Plus) mit gleicher Einheit werden gegengerechnet, zuerst mit gemeinsamem Stichwort („abscheren“).
+// Ohne Stichwort nur, wenn es in der Einheit genau ein Minus und ein Plus gibt (dann immer orange).
+// NIE zwischen verschiedenen Aufträgen. Was nicht ausgeglichen wird, bleibt als Rest rot.
+function stichwort(a, b) {
+  const wb = [...woerter(b)];
+  for (const w of woerter(a)) {
+    if (w.length >= 5 && wb.includes(w)) return w;
+    const x = wb.find((x) => Math.min(x.length, w.length) >= 6 && (x.startsWith(w) || w.startsWith(x)));
+    if (x) return x.length < w.length ? x : w; // Malereiausbesserung(en)
+  }
+  return null;
+}
+
+function gegenrechnen(zeilen, k) {
+  // Nur echte Abweichungen: keine Infos (Vormonat, läuft weiter), Tippfehler, anderen Einheiten oder Abzugszeilen (Menge < 0)
+  const offen = (z) => z.diff != null && !z.unplausibel && (z.status === "fehler" || z.status === "plus") && z.abgerechnet >= 0;
+  const minus = zeilen.filter((z) => offen(z) && z.diff < 0), plus = zeilen.filter((z) => offen(z) && z.diff > 0);
+  if (!minus.length || !plus.length) return;
+  const rest = new Map([...minus, ...plus].map((z) => [z, Math.abs(z.diff)]));
+  const umbuchungen = [];
+  const buche = (m, p, wort) => {
+    const mg = r2(Math.min(rest.get(m), rest.get(p)));
+    if (mg < 0.005) return;
+    rest.set(m, r2(rest.get(m) - mg));
+    rest.set(p, r2(rest.get(p) - mg));
+    umbuchungen.push({ m, p, menge: mg, wort });
+  };
+  const gleich = (m, p) => einheitNorm(m.einheit) === einheitNorm(p.einheit);
+  // 1) gemeinsames Stichwort, ähnlichste Mengen zuerst
+  const paare = minus.flatMap((m) => plus.filter((p) => gleich(m, p)).map((p) => ({ m, p, wort: stichwort(m.name, p.name) })))
+    .filter((x) => x.wort).sort((a, b) => Math.abs(a.m.diff + a.p.diff) - Math.abs(b.m.diff + b.p.diff));
+  for (const x of paare) buche(x.m, x.p, x.wort);
+  // 2) ohne Stichwort: je Einheit genau ein offenes Minus und ein offenes Plus
+  for (const m of minus) {
+    const mo = minus.filter((x) => gleich(x, m) && rest.get(x) > 0.005), po = plus.filter((x) => gleich(x, m) && rest.get(x) > 0.005);
+    if (mo.length === 1 && po.length === 1 && mo[0] === m) buche(m, po[0], null);
+  }
+  if (!umbuchungen.length) return;
+
+  const satzCent = (z) => (z.satz != null ? r2(z.satz) : null); // gedruckter Satz, ohne Rundungsreste aus Betrag ÷ Menge
+  const neueZeilen = [];
+  for (const u of umbuchungen) {
+    const { m, p } = u, sv = satzCent(m), sn = satzCent(p);
+    const euroVon = sv != null ? r2(u.menge * sv * m.anteil) : null; // so viel fällt bei der gekürzten Position weg (dein Anteil)
+    const euroNach = sn != null ? r2(u.menge * sn * p.anteil) : null; // so viel kommt bei der anderen dazu
+    const euroDein = euroVon != null && euroNach != null ? r2(euroNach - euroVon) : null;
+    const euroGesamt = sv != null && sn != null ? r2(u.menge * (sn - sv)) : null;
+    const status = euroDein != null && u.wort && Math.abs(euroDein) <= RUNDUNG ? "ok" : "hinweis";
+    const z = {
+      auftrag: m.auftrag, name: `${m.name} → ${p.name}`, einheit: p.einheit, einheitAbger: p.einheit,
+      eingereicht: u.menge, abgerechnet: u.menge, diff: 0, satz: sn, euroGesamt, euroDein, art: "umgebucht", status,
+      unplausibel: false, plus: false, team: m.team || p.team, anteil: p.anteil, nameAbger: null,
+      umbuchung: { von: m.name, nach: p.name, menge: u.menge, einheit: p.einheit, satzVon: sv, satzNach: sn, euroVon, euroNach, stichwort: u.wort, anteilVon: m.anteil, anteilNach: p.anteil },
+    };
+    z.erklaerung = erklaereUmbuchung(z);
+    neueZeilen.push([m, z]);
+    (m.umgebucht ??= []).push({ menge: u.menge, richtung: "auf", mit: p.name, status });
+    (p.umgebucht ??= []).push({ menge: u.menge, richtung: "von", mit: m.name, status });
+  }
+  // Gekürzte/erhöhte Zeilen behalten nur den Rest ohne Ausgleich
+  for (const z of rest.keys()) {
+    if (!z.umgebucht) continue;
+    z.diff = r2(Math.sign(z.diff) * rest.get(z));
+    z.euroGesamt = z.satz != null ? r2(z.diff * z.satz) : null;
+    z.euroDein = z.euroGesamt != null ? r2(z.euroGesamt * z.anteil) : null;
+    if (Math.abs(z.diff) < 0.005) {
+      // ganz ausgeglichen: Farbe der Umbuchung, zählt nicht extra (steckt in der Umbuchungszeile)
+      z.ausgeglichen = true;
+      z.art = "umgebucht";
+      z.status = z.umgebucht.some((x) => x.status === "hinweis") ? "hinweis" : "ok";
+      z.euroGesamt = z.euroDein = 0;
+    }
+    z.erklaerung = erklaere(z, k);
+  }
+  // Umbuchungszeile direkt unter die gekürzte Position
+  const neu = zeilen.flatMap((x) => [x, ...neueZeilen.filter(([m]) => m === x).map(([, z]) => z)]);
+  zeilen.splice(0, zeilen.length, ...neu);
+}
+
+function erklaereUmbuchung(z) {
+  const u = z.umbuchung, e = (x) => `${menge(x)} ${u.einheit}`.trim();
+  let t = `${e(u.menge)} „${u.von}“ → „${u.nach}“: im selben Auftrag umgebucht, nicht gestrichen.`;
+  if (!u.stichwort) t += " Die beiden Positionen haben kein gemeinsames Stichwort, es ist aber die einzige passende Kürzung und Erhöhung mit dieser Einheit. Bitte selbst ansehen.";
+  if (z.euroDein == null) return t + " Ein Satz ist unbekannt, die €-Wirkung ist nicht berechenbar.";
+  const teil = (mg, satz, anteil) => `${e(mg)} × ${euro(satz)}${anteil < 1 ? ` ÷ ${Math.round(1 / anteil)}` : ""}`;
+  t += ` Weg: ${teil(u.menge, u.satzVon, u.anteilVon)} = ${euro(u.euroVon)}, dazu: ${teil(u.menge, u.satzNach, u.anteilNach)} = ${euro(u.euroNach)}.`;
+  if (Math.abs(z.euroDein) <= RUNDUNG) return t + " Menge und Betrag gleichen sich aus.";
+  const grund = Math.abs(u.satzVon - u.satzNach) > 0.005 ? `durch anderen ${u.einheit}-Preis (${euro(u.satzVon)} → ${euro(u.satzNach)})` : "durch anderen Team-Anteil";
+  return t + ` Die Menge gleicht sich aus, aber ${vorzeichenEuro(z.euroDein)} ${grund}${z.euroDein < 0 ? ": zu wenig bezahlt." : " zu deinen Gunsten."}`;
+}
+
 function erklaere(z, k) {
   const e = (x, einheit = z.einheit) => `${menge(x)} ${einheit}`.trim();
   const titel = z.nameAbger ? `${z.name} (abgerechnet als „${z.nameAbger}“)` : z.name;
   let t;
+  if (z.umgebucht) {
+    // Teil oder alles ist im selben Auftrag auf/von einer anderen Position umgebucht
+    t = `${titel}: ${z.eingereicht ? `${e(z.eingereicht)} eingereicht` : "nicht im Arbeitsblatt"}, ${z.abgerechnet ? `${e(z.abgerechnet, z.einheitAbger ?? z.einheit)} abgerechnet` : "nicht abgerechnet"}. `;
+    const wohin = z.umgebucht.map((x) => `${e(x.menge)} ${x.richtung} „${x.mit}“`).join(", ");
+    t += `Davon ${wohin} umgebucht (siehe Umbuchung).`;
+    if (z.ausgeglichen) return t + " Damit ist die Menge ausgeglichen.";
+    t += ` Es bleiben ${vzMenge(z.diff)} ${z.einheit} ohne Ausgleich`;
+    t += z.euroGesamt == null ? ", Satz unbekannt, € nicht berechenbar." : z.anteil < 1 ? `: ${vorzeichenEuro(z.euroGesamt)} für das Team, dein Anteil (÷ ${Math.round(1 / z.anteil)}) ${vorzeichenEuro(z.euroDein)}.` : `: ${vorzeichenEuro(z.euroDein)} (${vzMenge(z.diff)} ${z.einheit} × ${euro(z.satz)}).`;
+    if (z.plus) t += " Die Position war nachgetragen (+).";
+    if (/Überscher/i.test(z.name) && z.diff < 0) t += " Überscheren und abkehren gehört fix zur Arbeit und steht dir zu.";
+    return t;
+  }
   if (z.art === "ok") t = `${titel}: ${e(z.eingereicht)} eingereicht und abgerechnet.`;
   else if (z.art === "gestrichen") t = `${titel}: ${e(z.eingereicht)} eingereicht, nicht abgerechnet`;
   else if (z.art === "neu") t = `${titel}: nicht im Arbeitsblatt, ${e(z.abgerechnet)} abgerechnet`;
@@ -295,31 +402,10 @@ function erklaere(z, k) {
   return t;
 }
 
-// ---------- 4. Umbuchungen ----------
-// Kürzung und Erhöhung mit gleicher Stundenzahl = mögliche Umbuchung (Stunden in einen anderen Auftrag/eine andere Position geschoben).
-const zaehlt = (z) => ["fehler", "hinweis", "plus"].includes(z.status) && !z.unplausibel;
-// Wirkung einer Umbuchung für dich: weniger = rot, mehr = blau, ±0 = nur Hinweis
-export const umbuchungStatus = (g) => (g.netto < -0.005 ? "fehler" : g.netto > 0.005 ? "plus" : "hinweis");
-export function umbuchungen(abgleich) {
-  const zeilen = abgleich.flatMap((a) => a.zeilen).filter((z) => zaehlt(z) && z.diff != null && z.einheit === "Std");
-  const minus = zeilen.filter((z) => z.diff < 0), plus = zeilen.filter((z) => z.diff > 0);
-  const benutzt = new Set(), gruppen = [];
-  for (const m of minus) {
-    // lieber in einen anderen Auftrag, dann gleicher Satz
-    const p = plus.filter((x) => !benutzt.has(x) && Math.abs(x.diff + m.diff) < 0.005)
-      .sort((a, b) => (a.auftrag === m.auftrag) - (b.auftrag === m.auftrag) || Math.abs(a.satz - m.satz) - Math.abs(b.satz - m.satz))[0];
-    if (!p) continue;
-    benutzt.add(p);
-    const netto = r2((m.euroDein ?? 0) + (p.euroDein ?? 0));
-    const warnungen = [];
-    if (p.team && !m.team) warnungen.push(`Die ${menge(p.diff)} ${p.einheit} wurden in einen Teamauftrag verschoben: Dort bekommst du nur ${Math.round(p.anteil * 100)} % davon.`);
-    if (m.team && !p.team) warnungen.push(`Die ${menge(p.diff)} ${p.einheit} kommen aus einem Teamauftrag.`);
-    if (m.satz != null && p.satz != null && Math.abs(m.satz - p.satz) > 0.005)
-      warnungen.push(`Verschoben zu einem anderen Satz: ${euro(m.satz)} → ${euro(p.satz)} je ${p.einheit}.`);
-    gruppen.push({ von: m, nach: p, menge: p.diff, einheit: p.einheit, netto, warnungen });
-  }
-  return gruppen;
-}
+// ---------- 4. Netto-Wirkung ----------
+// Abweichungen zwischen verschiedenen Aufträgen werden bewusst NICHT gegengerechnet (Tom, 10/2026), nur im selben Auftrag (siehe 3.).
+// Ganz ausgeglichene Positionen zählen nicht extra, ihre Wirkung steckt in der Umbuchungszeile.
+const zaehlt = (z) => ["fehler", "hinweis", "plus"].includes(z.status) && !z.unplausibel && !z.ausgeglichen;
 
 // Netto-Wirkung = Summe aller gezählten Abweichungen (dein Anteil). Infos (Vormonat, läuft weiter) und Tippfehler zählen nicht.
 export const nettoWirkung = (abgleich) =>

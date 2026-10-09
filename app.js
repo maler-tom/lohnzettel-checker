@@ -1,10 +1,10 @@
 import * as pdfjs from "./vendor/pdfjs/pdf.min.mjs";
-import { zeilenAusItems } from "./src/parser.js?v=0.14";
-import { euro } from "./src/pruefungen.js?v=0.14";
-import { werteAus, pruefePreisverlauf, pruefePreisliste } from "./src/auswertung.js?v=0.14";
-import { istPreisliste, lesePreisliste } from "./src/preisliste.js?v=0.14";
-import { menge, vorzeichenEuro, umbuchungStatus } from "./src/abgleich.js?v=0.14";
-import { protokollAusMonat, leseExport, exportDaten, ladeProtokolle, ladeProtokoll, speichereProtokoll, loescheProtokoll, loescheAlleProtokolle } from "./src/protokoll.js?v=0.14";
+import { zeilenAusItems } from "./src/parser.js?v=0.15";
+import { euro } from "./src/pruefungen.js?v=0.15";
+import { werteAus, pruefePreisverlauf, pruefePreisliste } from "./src/auswertung.js?v=0.15";
+import { istPreisliste, lesePreisliste } from "./src/preisliste.js?v=0.15";
+import { menge, vorzeichenEuro } from "./src/abgleich.js?v=0.15";
+import { protokollAusMonat, leseExport, exportDaten, ladeProtokolle, ladeProtokoll, speichereProtokoll, loescheProtokoll, loescheAlleProtokolle } from "./src/protokoll.js?v=0.15";
 
 pdfjs.GlobalWorkerOptions.workerSrc = "./vendor/pdfjs/pdf.worker.min.mjs";
 
@@ -285,7 +285,8 @@ function monatsKarte(m) {
   const gunsten = auffaellig.filter((x) => x.status === "plus");
   // Mail-Knopf nur, wenn etwas zu deinem Nachteil (rot) oder falsch gebucht ist (andere Einheit als eingereicht).
   // Nur diese Punkte kommen in die Mail. Mit "×" rechts nimmst du einen Punkt aus der Mail heraus.
-  const melden = [...nachteil, ...unklar.filter((x) => x.art === "umgerechnet")];
+  // Umbuchung mit weniger € (anderer Preis) auch, die Menge stimmt dann zwar, das Geld aber nicht.
+  const melden = [...nachteil, ...unklar.filter((x) => x.art === "umgerechnet" || (x.art === "umgebucht" && (x.euro ?? 0) < -0.02))];
   const weggelassen = new Set();
   const mailKnopf = q(".mailknopf"), mailInfo = el("p", "klein mailweg");
   const mailNeu = () => {
@@ -421,7 +422,7 @@ function zeigeBruttoCheck(box, zeilen) {
 }
 
 // ---------- Positionsabgleich Arbeitsblatt <-> Akkordabrechnung ----------
-const ART_WORT = { gestrichen: "gestrichen", gekürzt: "gekürzt", erhöht: "erhöht", neu: "nicht im Blatt", umgerechnet: "andere Einheit" };
+const ART_WORT = { gestrichen: "gestrichen", gekürzt: "gekürzt", erhöht: "erhöht", neu: "nicht im Blatt", umgerechnet: "andere Einheit", umgebucht: "umgebucht" };
 const plusMinus = (x) => (x < -0.005 ? "minus" : x > 0.005 ? "plus" : null);
 
 function zeigePositionsabgleich(box, ab) {
@@ -430,29 +431,19 @@ function zeigePositionsabgleich(box, ab) {
     klappKopf(box, "info", "keine Arbeitsblätter in der PDF");
     nw.textContent = "In dieser PDF sind keine Arbeitsblätter, darum gibt es keinen Positionsabgleich.";
     nw.classList.add("klein");
-    box.querySelector(".umbuchungen").remove();
     return;
   }
-  const abw = [...ab.abgleich.flatMap((a) => [...a.zeilen, ...a.hinweise]), ...ab.umbuchungen.map((g) => ({ status: umbuchungStatus(g) }))].filter((z) => z.status !== "ok" && z.status !== "info");
+  const abw = [...ab.abgleich.flatMap((a) => [...a.zeilen.filter((z) => !z.ausgeglichen), ...a.hinweise])].filter((z) => z.status !== "ok" && z.status !== "info");
   klappKopf(box, statusAus(abw), [`Netto ${vorzeichenEuro(ab.netto)}`, abw.length ? zaehlText(abw) : "alles wie eingereicht"].join(" · "));
   nw.append("Netto-Wirkung des Monats: ", el("strong", plusMinus(ab.netto), vorzeichenEuro(ab.netto)),
     el("span", "klein block", "Summe aller Abweichungen Arbeitsblatt → Abrechnung (dein Anteil). Vormonat, „läuft weiter“ und vermutliche Tippfehler zählen nicht."));
-
-  const ul = box.querySelector(".umbuchungen");
-  for (const g of ab.umbuchungen) {
-    const text = `Auftrag ${g.von.auftrag} (${g.von.name}) ${vorzeichenEuro(g.von.euroDein ?? 0)} → Auftrag ${g.nach.auftrag} (${g.nach.name}) ${vorzeichenEuro(g.nach.euroDein ?? 0)}. Netto ${vorzeichenEuro(g.netto)}.`;
-    const li = pruefPunkt({ status: umbuchungStatus(g), titel: `Mögliche Umbuchung: ${menge(g.menge)} ${g.einheit}`, text });
-    for (const w of g.warnungen) li.lastChild.append(el("span", "text warnung", `⚠ ${w}`));
-    ul.append(li);
-  }
-  if (!ul.children.length) ul.remove();
 
   const liste = box.querySelector(".abgleichauftraege");
   for (const a of ab.abgleich) liste.append(abgleichAuftrag(a));
 }
 
 function abgleichAuftrag(a) {
-  const abw = a.zeilen.filter((z) => z.status !== "ok");
+  const abw = a.zeilen.filter((z) => z.status !== "ok" && !z.ausgeglichen);
   const alle = [...abw, ...a.hinweise, ...(a.aufteilung && !a.aufteilung.ok ? [{ status: "fehler" }] : [])];
   const status = statusAus(alle);
   const d = el("details", `auftragabgleich ${status}`);
@@ -477,14 +468,14 @@ function abgleichAuftrag(a) {
       const name = el("span", null, z.name);
       if (z.plus) { const p = el("span", "plusmarke", "+"); p.title = "nachgetragen"; name.prepend(p, " "); }
       const tr = tabellenZeile([name, z.eingereicht ? `${menge(z.eingereicht)} ${z.einheit}`.trim() : "–", z.abgerechnet ? `${menge(z.abgerechnet)} ${z.einheitAbger ?? z.einheit}`.trim() : "–", ""]);
-      tr.className = `zeile-${z.status}`;
+      tr.className = `zeile-${z.status}${z.umbuchung ? " umbuchungszeile" : ""}`;
       tr.dataset.name = z.name;
       body.append(tr);
-      if (z.status === "ok") { tr.lastChild.append(el("span", "okhaken", "✓")); continue; }
-      // Rotes/oranges Feld: antippen zeigt die Erklärung darunter
+      if (z.status === "ok" && z.art !== "umgebucht") { tr.lastChild.append(el("span", "okhaken", "✓")); continue; }
+      // Rotes/oranges/grünes Feld: antippen zeigt die Erklärung darunter
       const knopf = el("button", `diffknopf ${z.status}`);
       knopf.type = "button";
-      const diffText = z.euroDein != null ? vorzeichenEuro(z.euroDein) : z.diff != null ? `${z.diff > 0 ? "+" : "−"}${menge(Math.abs(z.diff))} ${z.einheit}` : "?";
+      const diffText = z.ausgeglichen ? "ausgeglichen" : z.euroDein != null ? vorzeichenEuro(z.euroDein) : z.diff != null ? `${z.diff > 0 ? "+" : "−"}${menge(Math.abs(z.diff))} ${z.einheit}` : "?";
       knopf.append(el("span", "diffart", ART_WORT[z.art]), el("span", "diffwert", diffText));
       knopf.setAttribute("aria-expanded", "false");
       const erkl = el("tr", "erklaerzeile");
@@ -571,7 +562,7 @@ async function zeigeVerlauf(meldung) {
 zeigeVerlauf();
 
 // ---------- Verlauf drucken / als PDF (Druckfenster des Browsers, nichts verlässt das Gerät) ----------
-const DRUCK_ART = { gestrichen: "gestrichen", gekürzt: "gekürzt", erhöht: "erhöht", neu: "nicht im Arbeitsblatt", umgerechnet: "andere Einheit" };
+const DRUCK_ART = { gestrichen: "gestrichen", gekürzt: "gekürzt", erhöht: "erhöht", neu: "nicht im Arbeitsblatt", umgerechnet: "andere Einheit", umgebucht: "umgebucht" };
 const wirkungWort = (x) => (x < -0.005 ? "zu deinem Nachteil" : x > 0.005 ? "zu deinen Gunsten" : "ausgeglichen");
 
 function baueDruck(liste) {

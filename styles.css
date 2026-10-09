@@ -222,6 +222,9 @@ strong.plus, .verlaufwert.plus { color: var(--ok); }
 .diffknopf.fehler { color: var(--fehler); }
 .diffknopf.hinweis { color: var(--hinweis); }
 .diffknopf.info { color: var(--info); }
+.diffknopf.ok { color: var(--ok); }
+.zeile-ok.umbuchungszeile td { background: var(--ok-bg); }
+.umbuchungszeile td:first-child { font-style: italic; }
 .diffknopf[aria-expanded="true"] { background: currentColor; }
 .diffknopf[aria-expanded="true"] span { color: var(--karte); }
 .diffart { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; }
@@ -230,6 +233,7 @@ strong.plus, .verlaufwert.plus { color: var(--ok); }
 .erklaerzeile td.fehler { background: var(--fehler-bg); }
 .erklaerzeile td.hinweis { background: var(--hinweis-bg); }
 .erklaerzeile td.info { background: var(--info-bg); }
+.erklaerzeile td.ok { background: var(--ok-bg); }
 .aufteilung { font-size: 0.9rem; }
 .aufteilung.ok { color: var(--ok); }
 .aufteilung.fehler { color: var(--fehler); font-weight: 600; }

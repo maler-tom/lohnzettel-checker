@@ -24,6 +24,5 @@ for (const datei of dateien) {
     for (const z of abw) console.log(`      ${z.status.padEnd(7)} ${z.art.padEnd(10)} ${z.erklaerung}`);
     for (const h of a.hinweise) console.log(`      ${h.status.padEnd(7)} ${h.text}`);
   }
-  for (const g of ab.umbuchungen) console.log(`  UMBUCHUNG ${g.menge} ${g.einheit}: ${g.von.auftrag} → ${g.nach.auftrag}, netto ${vorzeichenEuro(g.netto)} ${g.warnungen.join(" ")}`);
   console.log(`  NETTO-WIRKUNG ${vorzeichenEuro(ab.netto)}`);
 }

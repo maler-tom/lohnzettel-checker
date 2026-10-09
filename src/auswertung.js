@@ -1,13 +1,13 @@
 // Wertet die Seiten EINER PDF aus: Gehaltsseite + Arbeiter-Abrechnungen.
 // Wird von der App und vom Test-Werkzeug gleich benutzt.
-import { istGehaltsseite, leseGehaltsseite } from "./parser.js?v=0.14";
-import { pruefe, gesamtStatus } from "./pruefungen.js?v=0.14";
-import { istArbeiterSeite, leseArbeiterSeite, fasseAbrechnungenZusammen } from "./malerliste.js?v=0.14";
-import { pruefeMalerliste, auftragStatus } from "./pruefungen-malerliste.js?v=0.14";
-import { ergaenzePreisverlauf } from "./preise.js?v=0.14";
-import { pruefeGegenPreisliste } from "./preisliste.js?v=0.14";
-import { istArbeitsblatt, leseArbeitsblatt, fasseArbeitsblaetterZusammen, istDetailaufstellung, leseDetailaufstellung } from "./arbeitsblatt.js?v=0.14";
-import { bruttoCheck, positionsAbgleich, umbuchungen, nettoWirkung, umbuchungStatus, menge, vorzeichenEuro } from "./abgleich.js?v=0.14";
+import { istGehaltsseite, leseGehaltsseite } from "./parser.js?v=0.15";
+import { pruefe, gesamtStatus } from "./pruefungen.js?v=0.15";
+import { istArbeiterSeite, leseArbeiterSeite, fasseAbrechnungenZusammen } from "./malerliste.js?v=0.15";
+import { pruefeMalerliste, auftragStatus } from "./pruefungen-malerliste.js?v=0.15";
+import { ergaenzePreisverlauf } from "./preise.js?v=0.15";
+import { pruefeGegenPreisliste } from "./preisliste.js?v=0.15";
+import { istArbeitsblatt, leseArbeitsblatt, fasseArbeitsblaetterZusammen, istDetailaufstellung, leseDetailaufstellung } from "./arbeitsblatt.js?v=0.15";
+import { bruttoCheck, positionsAbgleich, nettoWirkung } from "./abgleich.js?v=0.15";
 
 // seitenZeilen: Array von Zeilen je Seite (aus zeilenAusItems)
 export function werteAus(seitenZeilen) {
@@ -50,22 +50,20 @@ export function werteAus(seitenZeilen) {
 function arbeitsblattAbgleich(blaetter, maler, monat) {
   if (!blaetter.length) return null;
   const abgleich = positionsAbgleich(blaetter, maler, monat);
-  const gruppen = umbuchungen(abgleich);
-  const WORT = { gestrichen: "gestrichen", gekürzt: "gekürzt", erhöht: "erhöht", neu: "nicht im Arbeitsblatt", umgerechnet: "andere Einheit" };
+  const WORT = { gestrichen: "gestrichen", gekürzt: "gekürzt", erhöht: "erhöht", neu: "nicht im Arbeitsblatt", umgerechnet: "andere Einheit", umgebucht: "umgebucht" };
   for (const a of abgleich) {
     const auf = maler.auftraege.find((x) => x.auftrag === a.auftrag);
     const ziel = auf ? auf.pruefungen : maler.abgleich;
     const vor = auf ? "" : `Arbeitsblatt ${a.auftrag}: `;
-    for (const z of a.zeilen.filter((x) => x.status !== "ok"))
+    // Ganz ausgeglichene Positionen nicht extra melden, die Umbuchungszeile sagt alles
+    for (const z of a.zeilen.filter((x) => (x.status !== "ok" || x.umbuchung) && !x.ausgeglichen))
       ziel.push({ status: z.status, titel: `${vor}${z.name}: ${WORT[z.art]}`, text: z.erklaerung, euro: z.euroDein, art: z.art, bereich: "arbeitsblatt", sprung: { auftrag: a.auftrag, name: z.name } });
     for (const h of a.hinweise) ziel.push({ status: h.status, titel: `${vor}Arbeitsblatt`, text: h.text, bereich: "arbeitsblatt", sprung: { auftrag: a.auftrag } });
-    if (auf && a.zeilen.length && a.zeilen.every((x) => x.status === "ok"))
+    if (auf && a.zeilen.length && a.zeilen.every((x) => x.status === "ok" && x.art !== "umgebucht"))
       auf.pruefungen.push({ status: "ok", titel: "Arbeitsblatt", text: `Alle ${a.zeilen.length} Positionen wie eingereicht abgerechnet.`, bereich: "arbeitsblatt" });
   }
-  for (const g of gruppen)
-    maler.abgleich.push({ status: umbuchungStatus(g), titel: "Mögliche Umbuchung", bereich: "arbeitsblatt",
-      text: `${menge(g.menge)} ${g.einheit} bei Auftrag ${g.von.auftrag} (${g.von.name}) weniger, bei Auftrag ${g.nach.auftrag} (${g.nach.name}) mehr. Wirkung für dich: ${vorzeichenEuro(g.netto)}.${g.warnungen.length ? " " + g.warnungen.join(" ") : ""}` });
-  return { abgleich, umbuchungen: gruppen, netto: nettoWirkung(abgleich) };
+  // umbuchungen bleibt leer: keine Gegenrechnung zwischen Aufträgen (alte Protokolle können noch welche haben)
+  return { abgleich, umbuchungen: [], netto: nettoWirkung(abgleich) };
 }
 
 function mitStatus(m) {

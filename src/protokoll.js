@@ -2,7 +2,7 @@
 // KEINE Namen, Adressen, SV-Nummer oder IBAN. Gespeichert nur in diesem Browser (IndexedDB).
 
 const r2 = (x) => Math.round((x + Number.EPSILON) * 100) / 100;
-const ARTEN = ["gestrichen", "gekürzt", "erhöht", "neu", "umgerechnet"];
+const ARTEN = ["gestrichen", "gekürzt", "erhöht", "neu", "umgerechnet", "umgebucht"];
 const nr = (x) => (typeof x === "number" && Number.isFinite(x) ? r2(x) : null);
 const auftragNr = (x) => (typeof x === "string" && /^\d{4,12}$/.test(x) ? x : null);
 // Tätigkeitstext kurz halten (Bezeichnung der Arbeit, keine Person)
@@ -11,7 +11,7 @@ const taetigkeit = (x) => (typeof x === "string" ? x.replace(/\s+/g, " ").trim()
 // Aus dem Ergebnis von werteAus() das Protokoll bauen (nur die erlaubten Felder)
 export function protokollAusMonat(m) {
   const ab = m.arbeitsblatt;
-  const zaehlt = (z) => ["fehler", "hinweis", "plus"].includes(z.status) && !z.unplausibel;
+  const zaehlt = (z) => ["fehler", "hinweis", "plus"].includes(z.status) && !z.unplausibel && !z.ausgeglichen;
   const auftraege = [...new Set([...m.maler.auftraege.map((a) => a.auftrag), ...(ab?.abgleich ?? []).map((a) => a.auftrag)])].filter(auftragNr).sort();
   return pruefeProtokoll({
     monat: m.monat,
